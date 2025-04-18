@@ -164,8 +164,12 @@ function App() {
       try {
         setIsLoading(true);
 
-        // Attempt to load CSV
-        const csvContent = await loadCSVFromPossibleLocations();
+        // Attempt to load CSV (or use uploaded version)
+        const savedCsv = localStorage.getItem('uploadedToolsCsv');
+        const csvContent = savedCsv !== null
+          ? savedCsv
+          : await loadCSVFromPossibleLocations();
+        setCsvLoaded(true);
         // Store the raw CSV data for later reuse
         setRawCsvData(csvContent);
 
@@ -182,7 +186,6 @@ function App() {
           setTools(defaultTools);
         } else {
           setTools(processedTools);
-          setCsvLoaded(true);
 
           // Extract unique categories from the tools
           const categories = Array.from(new Set(processedTools.map(tool => tool.category)));
@@ -344,6 +347,54 @@ function App() {
     setSelectedDataSources([]);
     setSelectedUsers([]);
     setSearchTerm('');
+  };
+
+  // Handle CSV file upload to replace the dataset
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsLoading(true);
+    try {
+      const text = await file.text();
+      localStorage.setItem('uploadedToolsCsv', text);
+      setRawCsvData(text);
+      setCsvLoaded(true);
+      const processed = await processToolsData(text, similarityThreshold, featureWeights);
+      setTools(processed);
+      // Parse CSV for filter options
+      const parsedData = Papa.parse(text, { header: true }).data as any[];
+      const funcs = Array.from(new Set(parsedData
+        .map(row => row['Primary Function'])
+        .filter(Boolean)
+        .flatMap((val: string) => val.split(';').map(v => v.trim()))));
+      const envs = Array.from(new Set(parsedData
+        .map(row => row['Environment Type'])
+        .filter(Boolean)
+        .flatMap((val: string) => val.split(';').map(v => v.trim()))));
+      const srcs = Array.from(new Set(parsedData
+        .map(row => row['Data Sources'])
+        .filter(Boolean)
+        .flatMap((val: string) => val.split(';').map(v => v.trim()))));
+      const usrs = Array.from(new Set(parsedData
+        .map(row => row['Target User/Client'])
+        .filter(Boolean)
+        .flatMap((val: string) => val.split(';').map(v => v.trim()))));
+      setAvailableFunctions(funcs);
+      setAvailableEnvironments(envs);
+      setAvailableDataSources(srcs);
+      setAvailableUsers(usrs);
+      clearAllFilters();
+    } catch (err) {
+      console.error('Error uploading CSV', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Reset to default CSV (clears upload)
+  const handleResetCsv = () => {
+    localStorage.removeItem('uploadedToolsCsv');
+    window.location.reload();
   };
 
   // Filter tools based on all criteria
@@ -515,6 +566,19 @@ function App() {
                     }}
                   />
                 )}
+                <Button
+                  variant="outlined"
+                  component="label"
+                  sx={{ ml: 2, color: 'white', borderColor: 'rgba(255,255,255,0.7)' }}
+                >
+                  Upload CSV
+                  <input type="file" accept=".csv" hidden onChange={handleCsvUpload} />
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={handleResetCsv}
+                  sx={{ ml: 1, color: 'white', borderColor: 'rgba(255,255,255,0.7)' }}
+                >Reset CSV</Button>
               </Box>
             </Box>
           </Container>

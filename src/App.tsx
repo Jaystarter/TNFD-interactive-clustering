@@ -126,11 +126,12 @@ function App() {
 
   // Static high-level buckets for category filter
   const availableCategories = [
-    'Measurement',
-    'Assessment',
-    'Finance and Investment',
-    'Restoration',
-    'Monitoring'
+    'Sensors',
+    'Data Integration',
+    'Analysis',
+    'Visualization',
+    'Open Data',
+    'Experimental'
   ];
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
@@ -427,16 +428,130 @@ function App() {
         ]));
 
         // Apply high-level category filter on CSV Primary Function
-        if (selectedCategories.length > 0) {
+        if (selectedCategories.length > 0 && selectedCategories.length < availableCategories.length) {
+          // Only apply filtering if some but not all categories are selected
           const normalizedCats = selectedCategories.map(c => c.toLowerCase());
           filtered = filtered.filter(tool => {
             const csvTool = toolMap.get(tool.id);
             if (!csvTool) return false;
 
-            const funcs = (csvTool['Primary Function'] || '')
-              .split(';')
-              .map((s: string) => s.trim().toLowerCase().replace(/&/g, 'and'));
-            return funcs.some((f: string) => normalizedCats.includes(f));
+            // Get all relevant fields for categorization
+            const primaryFunction = (csvTool['Primary Function'] || '').toLowerCase();
+            const dataSources = (csvTool['Data Sources'] || '').toLowerCase();
+            const description = (csvTool['Description'] || '').toLowerCase();
+            const toolName = (csvTool['Tool Name'] || '').toLowerCase();
+            const targetUser = (csvTool['Target User/Client'] || '').toLowerCase();
+            const environmentType = (csvTool['Environment Type'] || '').toLowerCase();
+
+            // Combine all text for more comprehensive matching
+            const allText = `${primaryFunction} ${dataSources} ${description} ${toolName} ${targetUser} ${environmentType}`;
+
+            // Check if the tool belongs to any of the selected categories
+            let matchesCategory = false;
+
+            if (normalizedCats.includes('sensors')) {
+              matchesCategory = matchesCategory ||
+                allText.includes('sensor') ||
+                allText.includes('camera') ||
+                allText.includes('drone') ||
+                allText.includes('satellite') ||
+                allText.includes('hardware') ||
+                allText.includes('field device') ||
+                allText.includes('edna') ||
+                allText.includes('monitoring') ||
+                allText.includes('acoustic') ||
+                dataSources.includes('satellite imagery') ||
+                dataSources.includes('wildlife cameras') ||
+                dataSources.includes('acoustic sensors') ||
+                primaryFunction.includes('monitoring');
+            }
+
+            if (normalizedCats.includes('data integration')) {
+              matchesCategory = matchesCategory ||
+                primaryFunction.includes('data') ||
+                allText.includes('integration') ||
+                allText.includes('pipeline') ||
+                allText.includes('etl') ||
+                allText.includes('excel') ||
+                allText.includes('api') ||
+                allText.includes('collection') ||
+                allText.includes('database') ||
+                allText.includes('repository') ||
+                allText.includes('accounting') ||
+                primaryFunction.includes('footprinting') ||
+                primaryFunction.includes('data provision');
+            }
+
+            if (normalizedCats.includes('analysis')) {
+              matchesCategory = matchesCategory ||
+                primaryFunction.includes('analysis') ||
+                primaryFunction.includes('assessment') ||
+                primaryFunction.includes('modeling') ||
+                allText.includes('analytics') ||
+                allText.includes('recognition') ||
+                allText.includes('model') ||
+                allText.includes('statistical') ||
+                allText.includes('machine learning') ||
+                allText.includes('ml') ||
+                allText.includes('ai') ||
+                primaryFunction.includes('risk assessment') ||
+                primaryFunction.includes('impact assessment') ||
+                primaryFunction.includes('status assessment') ||
+                primaryFunction.includes('footprinting');
+            }
+
+            if (normalizedCats.includes('visualization')) {
+              matchesCategory = matchesCategory ||
+                allText.includes('visualization') ||
+                allText.includes('dashboard') ||
+                allText.includes('report') ||
+                allText.includes('kpi') ||
+                allText.includes('chart') ||
+                allText.includes('map') ||
+                allText.includes('display') ||
+                primaryFunction.includes('reporting') ||
+                primaryFunction.includes('benchmarking') ||
+                primaryFunction.includes('rating') ||
+                primaryFunction.includes('valuation');
+            }
+
+            if (normalizedCats.includes('open data')) {
+              matchesCategory = matchesCategory ||
+                allText.includes('open data') ||
+                allText.includes('database') ||
+                allText.includes('repository') ||
+                allText.includes('gbif') ||
+                allText.includes('obis') ||
+                allText.includes('research') ||
+                dataSources.includes('open') ||
+                description.includes('open access') ||
+                toolName.includes('gbif') ||
+                toolName.includes('data platform') ||
+                toolName.includes('data repository') ||
+                primaryFunction.includes('data provision') ||
+                primaryFunction.includes('knowledge database') ||
+                primaryFunction.includes('knowledge sharing');
+            }
+
+            if (normalizedCats.includes('experimental')) {
+              matchesCategory = matchesCategory ||
+                allText.includes('experimental') ||
+                allText.includes('prototype') ||
+                allText.includes('pilot') ||
+                allText.includes('blockchain') ||
+                allText.includes('vr') ||
+                allText.includes('ar') ||
+                allText.includes('citizen science') ||
+                allText.includes('artificial intelligence') ||
+                allText.includes('machine learning') ||
+                description.includes('emerging') ||
+                description.includes('cutting-edge') ||
+                toolName.includes('ai') ||
+                primaryFunction.includes('scenario planning') ||
+                primaryFunction.includes('prioritization');
+            }
+
+            return matchesCategory;
           });
         }
 
@@ -690,9 +805,27 @@ function App() {
               {/* Category filters */}
               {availableCategories.length > 0 && (
                 <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                    Categories
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Categories
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => {
+                        if (selectedCategories.length === availableCategories.length) {
+                          // If all are selected, clear all
+                          setSelectedCategories([]);
+                        } else {
+                          // Otherwise, select all
+                          setSelectedCategories([...availableCategories]);
+                        }
+                      }}
+                      sx={{ minWidth: 'auto', py: 0.5, px: 1 }}
+                    >
+                      {selectedCategories.length === availableCategories.length ? 'Clear All' : 'Select All'}
+                    </Button>
+                  </Box>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {availableCategories.map(category => (
                       <Chip

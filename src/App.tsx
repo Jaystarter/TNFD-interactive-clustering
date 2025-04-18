@@ -445,7 +445,9 @@ function App() {
             p: 2,
             background: `linear-gradient(to right, ${colorPalette.darkGreen}, ${colorPalette.mediumGreen})`,
             color: 'white',
-            borderBottom: '1px solid rgba(0,0,0,0.1)'
+            borderBottom: '1px solid rgba(0,0,0,0.1)',
+            position: 'relative',
+            zIndex: 3
           }}
         >
           <Container maxWidth="lg">
@@ -518,7 +520,13 @@ function App() {
           </Container>
         </Paper>
 
-        <Container maxWidth="lg" sx={{ mt: 2, mb: 1 }}>
+        <Container maxWidth="lg" sx={{
+          mt: 2,
+          mb: 1,
+          position: 'relative',
+          zIndex: 2,
+          bgcolor: '#f5f5f5'
+        }}>
           {/* Filter panel toggle */}
           <Paper
             elevation={2}
@@ -530,7 +538,9 @@ function App() {
               flexWrap: 'wrap',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: 1
+              gap: 1,
+              position: 'relative',
+              zIndex: 2
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -716,11 +726,13 @@ function App() {
           </Collapse>
 
           <Paper
+            className="controlsPaper"
             elevation={3}
             sx={{
               p: 2,
               mb: 2,
-              bgcolor: '#fff',
+              position: 'relative',
+              zIndex: 1
             }}
           >
             <Box sx={{

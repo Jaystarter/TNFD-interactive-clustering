@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import * as d3 from 'd3';
 import { Tool, tools, categories, colorPalette } from '../data/tools';
 
@@ -27,6 +27,8 @@ interface RelationshipInfo {
   category: string;
   x: number;
   y: number;
+  screenX: number;
+  screenY: number;
   primaryFunction?: string;
   dataSources?: string;
   targetUser?: string;
@@ -185,6 +187,22 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
   const nodesRef = useRef<Node[]>([]);
   const linksRef = useRef<Link[]>([]);
   const [relationshipInfo, setRelationshipInfo] = useState<RelationshipInfo | null>(null);
+  // Ref for popup DOM element and current info
+  const popupRef = useRef<HTMLDivElement>(null);
+  const relationshipInfoRef = useRef<RelationshipInfo | null>(null);
+  // Sync ref and set initial popup position
+  useLayoutEffect(() => {
+    relationshipInfoRef.current = relationshipInfo;
+    if (relationshipInfo && popupRef.current) {
+      const node = nodesRef.current.find(n => n.id === relationshipInfo._nodeId);
+      if (node) {
+        const sx = zoomTransformRef.current.applyX(node.x || 0);
+        const sy = zoomTransformRef.current.applyY(node.y || 0);
+        popupRef.current.style.left = `${sx}px`;
+        popupRef.current.style.top = `${sy}px`;
+      }
+    }
+  }, [relationshipInfo]);
 
   // Create a ref to track the current zoom transform
   const zoomTransformRef = useRef<d3.ZoomTransform>(d3.zoomIdentity);
@@ -228,20 +246,17 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
       .scaleExtent([0.5, 5])
       .on('zoom', (event) => {
         if (containerRef.current) {
-          // Store the current transform for use in popup positioning
           zoomTransformRef.current = event.transform;
-
-          // Apply transform to the container
           d3.select(containerRef.current).attr('transform', event.transform.toString());
 
-          // If there's an open popup, update its position to account for the zoom transform
-          if (relationshipInfo) {
-            // Force a re-render to update popup position
-            setRelationshipInfo({
-              ...relationshipInfo,
-              // Add a timestamp to force React to recognize this as a state change
-              _updateTimestamp: Date.now()
-            });
+          // Imperatively update popup position on zoom
+          if (popupRef.current && relationshipInfoRef.current) {
+            const info = relationshipInfoRef.current;
+            const node = nodesRef.current.find(n => n.id === info._nodeId);
+            if (node) {
+              popupRef.current.style.left = `${event.transform.applyX(node.x || 0)}px`;
+              popupRef.current.style.top = `${event.transform.applyY(node.y || 0)}px`;
+            }
           }
         }
       });
@@ -266,7 +281,7 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
 
     simulationRef.current = simulation;
 
-  }, [width, height, relationshipInfo]);
+  }, [width, height]);
 
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -568,21 +583,25 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
           const directLink = `https://tnfd.global/tools-platforms/${d.id}/`;
           console.log('Direct link (fallback):', directLink);
 
+          const nodeX = d.x || 0;
+          const nodeY = d.y || 0;
+          const screenX = zoomTransformRef.current.applyX(nodeX);
+          const screenY = zoomTransformRef.current.applyY(nodeY);
           setRelationshipInfo({
             id: d.id,
             name: d.name,
             category: d.category,
-            x: d.x || 0,
-            y: d.y || 0,
+            x: nodeX,
+            y: nodeY,
+            screenX,
+            screenY,
             primaryFunction: toolDetails.primaryFunction,
             dataSources: toolDetails.dataSources,
             targetUser: toolDetails.targetUser,
             environmentType: toolDetails.environmentType,
             description: toolDetails.description,
-            // Use the link from CSV if available, otherwise try the direct link
             tnfdLink: toolDetails.tnfdLink || directLink,
             connections: nodeConnections,
-            // Store the node ID to help track which node this popup belongs to
             _nodeId: d.id
           });
         } catch (error) {
@@ -593,15 +612,20 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
           const directLink = `https://tnfd.global/tools-platforms/${d.id}/`;
           console.log('Using fallback direct link:', directLink);
 
+          const nodeX = d.x || 0;
+          const nodeY = d.y || 0;
+          const screenX = zoomTransformRef.current.applyX(nodeX);
+          const screenY = zoomTransformRef.current.applyY(nodeY);
           setRelationshipInfo({
             id: d.id,
             name: d.name,
             category: d.category,
-            x: d.x || 0,
-            y: d.y || 0,
-            tnfdLink: directLink, // Add the direct link as fallback
+            x: nodeX,
+            y: nodeY,
+            screenX,
+            screenY,
+            tnfdLink: directLink,
             connections: nodeConnections,
-            // Store the node ID to help track which node this popup belongs to
             _nodeId: d.id
           });
         }
@@ -899,22 +923,18 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
       // Draw hulls and update node colors
       drawHulls();
 
-      // Draw node labels after hulls to ensure proper layering
-      drawNodeLabels();
-
-      // Update popup position if it's open and the associated node has moved
-      if (relationshipInfo && relationshipInfo._nodeId) {
-        const node = nodes.find(n => n.id === relationshipInfo._nodeId);
-        if (node && (node.x !== relationshipInfo.x || node.y !== relationshipInfo.y)) {
-          // Update the popup position to match the new node position
-          setRelationshipInfo({
-            ...relationshipInfo,
-            x: node.x || 0,
-            y: node.y || 0,
-            _updateTimestamp: Date.now()
-          });
+      // Imperatively update popup position on simulation tick
+      if (popupRef.current && relationshipInfoRef.current) {
+        const info = relationshipInfoRef.current;
+        const node = nodesRef.current.find(n => n.id === info._nodeId);
+        if (node) {
+          popupRef.current.style.left = `${zoomTransformRef.current.applyX(node.x || 0)}px`;
+          popupRef.current.style.top = `${zoomTransformRef.current.applyY(node.y || 0)}px`;
         }
       }
+
+      // Draw node labels after hulls to ensure proper layering
+      drawNodeLabels();
     });
 
     if (existingNodesMap.size > 0) {
@@ -940,87 +960,24 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
       <svg ref={svgRef} width={width} height={height} />
       {relationshipInfo && (
         <div
+          ref={popupRef}
           className="relationship-info"
           style={{
-            position: 'absolute',
-            // Smart positioning logic that ensures the popup is always fully visible
-            // and accounts for the current zoom transform
-            ...(() => {
-              const popupWidth = 380;
-              const popupHeight = 400; // Estimated average height
-              const padding = 20; // Space between node and popup
-
-              // Get viewport dimensions
-              const viewportWidth = window.innerWidth;
-              const viewportHeight = window.innerHeight;
-
-              // Apply the current zoom transform to get the actual screen coordinates
-              // This makes the popup move with the node when panning/zooming
-              const transform = zoomTransformRef.current;
-              const nodeScreenX = transform.applyX(relationshipInfo.x);
-              const nodeScreenY = transform.applyY(relationshipInfo.y);
-
-              // Calculate available space in each direction
-              const spaceBelow = viewportHeight - nodeScreenY;
-
-              // Determine horizontal position
-              let left;
-              if (nodeScreenX + popupWidth + padding <= viewportWidth) {
-                // Enough space to the right
-                left = nodeScreenX + padding;
-              } else if (nodeScreenX - popupWidth - padding >= 0) {
-                // Enough space to the left
-                left = nodeScreenX - popupWidth - padding;
-              } else {
-                // Not enough space on either side, center horizontally if possible
-                // or position at the edge with minimum padding
-                left = Math.max(
-                  padding,
-                  Math.min(
-                    viewportWidth - popupWidth - padding,
-                    nodeScreenX - popupWidth / 2
-                  )
-                );
-              }
-
-              // Determine vertical position
-              let top;
-              if (nodeScreenY + popupHeight + padding <= viewportHeight) {
-                // Enough space below
-                top = nodeScreenY + padding;
-              } else if (nodeScreenY - popupHeight - padding >= 0) {
-                // Enough space above
-                top = nodeScreenY - popupHeight - padding;
-              } else {
-                // Not enough space above or below
-                // Position at top or bottom edge with minimum padding
-                if (spaceBelow >= viewportHeight / 2) {
-                  // More space below than above
-                  top = Math.min(nodeScreenY + padding, viewportHeight - popupHeight - padding);
-                } else {
-                  // More space above than below
-                  top = padding;
-                }
-              }
-
-              // Ensure the popup stays within viewport bounds
-              left = Math.max(padding, Math.min(left, viewportWidth - popupWidth - padding));
-              top = Math.max(padding, Math.min(top, viewportHeight - popupHeight - padding));
-
-              return { left: `${left}px`, top: `${top}px` };
-            })(),
+            position: 'fixed',
+            left: '0px',
+            top: '0px',
             background: 'white',
             border: 'none',
             borderRadius: '12px',
             padding: '0',
             boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-            zIndex: 1000,
+            zIndex: 0,
             width: '380px',
             maxWidth: 'calc(100vw - 20px)',
             overflow: 'auto',
             maxHeight: '80vh',
             fontFamily: "'Inter', sans-serif",
-            transition: 'all 0.2s ease-out',
+            transition: 'none',
           }}
         >
           {/* Header with tool name and category */}

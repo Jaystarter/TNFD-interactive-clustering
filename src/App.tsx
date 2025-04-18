@@ -198,25 +198,25 @@ function App() {
               const functions = Array.from(new Set(parsedData
                 .map(row => row['Primary Function'])
                 .filter(Boolean)
-                .flatMap(val => val.split(';').map(v => v.trim()))
+                .flatMap(val => val.split(';').map((v: string) => v.trim()))
               ));
 
               const environments = Array.from(new Set(parsedData
                 .map(row => row['Environment Type'])
                 .filter(Boolean)
-                .flatMap(val => val.split(';').map(v => v.trim()))
+                .flatMap(val => val.split(';').map((v: string) => v.trim()))
               ));
 
               const dataSources = Array.from(new Set(parsedData
                 .map(row => row['Data Sources'])
                 .filter(Boolean)
-                .flatMap(val => val.split(';').map(v => v.trim()))
+                .flatMap(val => val.split(';').map((v: string) => v.trim()))
               ));
 
               const users = Array.from(new Set(parsedData
                 .map(row => row['Target User/Client'])
                 .filter(Boolean)
-                .flatMap(val => val.split(';').map(v => v.trim()))
+                .flatMap(val => val.split(';').map((v: string) => v.trim()))
               ));
 
               // Set the available filter options
@@ -303,7 +303,7 @@ function App() {
   // Generic filter toggle handler
   const handleFilterToggle = (
     value: string,
-    selectedValues: string[],
+    _selectedValues: string[], // Prefix with underscore to indicate it's not used
     setSelectedValues: React.Dispatch<React.SetStateAction<string[]>>
   ) => {
     setSelectedValues(prev => {
@@ -384,7 +384,7 @@ function App() {
             const csvTool = toolMap.get(tool.id);
             if (!csvTool) return false;
 
-            const functions = csvTool['Primary Function']?.split(';').map(f => f.trim()) || [];
+            const functions = csvTool['Primary Function']?.split(';').map((f: string) => f.trim()) || [];
             return selectedFunctions.some(f => functions.includes(f));
           });
         }
@@ -395,7 +395,7 @@ function App() {
             const csvTool = toolMap.get(tool.id);
             if (!csvTool) return false;
 
-            const environments = csvTool['Environment Type']?.split(';').map(e => e.trim()) || [];
+            const environments = csvTool['Environment Type']?.split(';').map((e: string) => e.trim()) || [];
             return selectedEnvironments.some(e => environments.includes(e));
           });
         }
@@ -406,7 +406,7 @@ function App() {
             const csvTool = toolMap.get(tool.id);
             if (!csvTool) return false;
 
-            const sources = csvTool['Data Sources']?.split(';').map(s => s.trim()) || [];
+            const sources = csvTool['Data Sources']?.split(';').map((s: string) => s.trim()) || [];
             return selectedDataSources.some(s => sources.includes(s));
           });
         }
@@ -417,7 +417,7 @@ function App() {
             const csvTool = toolMap.get(tool.id);
             if (!csvTool) return false;
 
-            const users = csvTool['Target User/Client']?.split(';').map(u => u.trim()) || [];
+            const users = csvTool['Target User/Client']?.split(';').map((u: string) => u.trim()) || [];
             return selectedUsers.some(u => users.includes(u));
           });
         }

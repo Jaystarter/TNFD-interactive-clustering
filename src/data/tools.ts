@@ -4,6 +4,13 @@ export interface Tool {
   category: string;
   relevance: number;
   connections: string[];
+  // Additional properties that might be present from CSV data
+  primaryFunction?: string;
+  dataSources?: string;
+  targetUser?: string;
+  environmentType?: string;
+  description?: string;
+  tnfdLink?: string;
 }
 
 export interface Category {

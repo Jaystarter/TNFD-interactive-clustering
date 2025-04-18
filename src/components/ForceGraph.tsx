@@ -39,6 +39,9 @@ interface RelationshipInfo {
     category: string;
     type: 'incoming' | 'outgoing' | 'both';
   }[];
+  // Optional properties for internal use
+  _updateTimestamp?: number;
+  _nodeId?: string;
 }
 
 interface Cluster {
@@ -183,6 +186,9 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
   const linksRef = useRef<Link[]>([]);
   const [relationshipInfo, setRelationshipInfo] = useState<RelationshipInfo | null>(null);
 
+  // Create a ref to track the current zoom transform
+  const zoomTransformRef = useRef<d3.ZoomTransform>(d3.zoomIdentity);
+
   useEffect(() => {
     if (!svgRef.current) return;
 
@@ -222,7 +228,21 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
       .scaleExtent([0.5, 5])
       .on('zoom', (event) => {
         if (containerRef.current) {
+          // Store the current transform for use in popup positioning
+          zoomTransformRef.current = event.transform;
+
+          // Apply transform to the container
           d3.select(containerRef.current).attr('transform', event.transform.toString());
+
+          // If there's an open popup, update its position to account for the zoom transform
+          if (relationshipInfo) {
+            // Force a re-render to update popup position
+            setRelationshipInfo({
+              ...relationshipInfo,
+              // Add a timestamp to force React to recognize this as a state change
+              _updateTimestamp: Date.now()
+            });
+          }
         }
       });
 
@@ -240,13 +260,13 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
     const simulation = d3.forceSimulation<Node>()
       .force('charge', d3.forceManyBody().strength(-180).distanceMax(250))
       .force('center', d3.forceCenter(width / 2, height / 2).strength(0.08))
-      .force('collision', d3.forceCollide().radius(d => d.relevance * 18))
+      .force('collision', d3.forceCollide().radius((d: any) => (d as Node).relevance * 18))
       .alphaDecay(0.01)
       .velocityDecay(0.25);
 
     simulationRef.current = simulation;
 
-  }, [width, height]);
+  }, [width, height, relationshipInfo]);
 
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -561,7 +581,9 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
             description: toolDetails.description,
             // Use the link from CSV if available, otherwise try the direct link
             tnfdLink: toolDetails.tnfdLink || directLink,
-            connections: nodeConnections
+            connections: nodeConnections,
+            // Store the node ID to help track which node this popup belongs to
+            _nodeId: d.id
           });
         } catch (error) {
           console.error('Error fetching tool details:', error);
@@ -578,7 +600,9 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
             x: d.x || 0,
             y: d.y || 0,
             tnfdLink: directLink, // Add the direct link as fallback
-            connections: nodeConnections
+            connections: nodeConnections,
+            // Store the node ID to help track which node this popup belongs to
+            _nodeId: d.id
           });
         }
       });
@@ -637,7 +661,6 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
         const node = d3.select(this);
         if (d.cluster) {
           // Node is in a cluster - ALWAYS make it white with colored border
-          const cluster = currentClusters.find(c => c.id === d.cluster);
           node.attr('fill', '#ffffff');
           node.attr('stroke', colorPalette.darkGreen);
           node.attr('stroke-width', 2);
@@ -878,6 +901,20 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
 
       // Draw node labels after hulls to ensure proper layering
       drawNodeLabels();
+
+      // Update popup position if it's open and the associated node has moved
+      if (relationshipInfo && relationshipInfo._nodeId) {
+        const node = nodes.find(n => n.id === relationshipInfo._nodeId);
+        if (node && (node.x !== relationshipInfo.x || node.y !== relationshipInfo.y)) {
+          // Update the popup position to match the new node position
+          setRelationshipInfo({
+            ...relationshipInfo,
+            x: node.x || 0,
+            y: node.y || 0,
+            _updateTimestamp: Date.now()
+          });
+        }
+      }
     });
 
     if (existingNodesMap.size > 0) {
@@ -906,8 +943,72 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
           className="relationship-info"
           style={{
             position: 'absolute',
-            // New smart positioning logic that ensures popup is always visible
-            ...calculateOptimalPopupPosition(relationshipInfo.x, relationshipInfo.y, width, height, 380, 400),
+            // Smart positioning logic that ensures the popup is always fully visible
+            // and accounts for the current zoom transform
+            ...(() => {
+              const popupWidth = 380;
+              const popupHeight = 400; // Estimated average height
+              const padding = 20; // Space between node and popup
+
+              // Get viewport dimensions
+              const viewportWidth = window.innerWidth;
+              const viewportHeight = window.innerHeight;
+
+              // Apply the current zoom transform to get the actual screen coordinates
+              // This makes the popup move with the node when panning/zooming
+              const transform = zoomTransformRef.current;
+              const nodeScreenX = transform.applyX(relationshipInfo.x);
+              const nodeScreenY = transform.applyY(relationshipInfo.y);
+
+              // Calculate available space in each direction
+              const spaceBelow = viewportHeight - nodeScreenY;
+
+              // Determine horizontal position
+              let left;
+              if (nodeScreenX + popupWidth + padding <= viewportWidth) {
+                // Enough space to the right
+                left = nodeScreenX + padding;
+              } else if (nodeScreenX - popupWidth - padding >= 0) {
+                // Enough space to the left
+                left = nodeScreenX - popupWidth - padding;
+              } else {
+                // Not enough space on either side, center horizontally if possible
+                // or position at the edge with minimum padding
+                left = Math.max(
+                  padding,
+                  Math.min(
+                    viewportWidth - popupWidth - padding,
+                    nodeScreenX - popupWidth / 2
+                  )
+                );
+              }
+
+              // Determine vertical position
+              let top;
+              if (nodeScreenY + popupHeight + padding <= viewportHeight) {
+                // Enough space below
+                top = nodeScreenY + padding;
+              } else if (nodeScreenY - popupHeight - padding >= 0) {
+                // Enough space above
+                top = nodeScreenY - popupHeight - padding;
+              } else {
+                // Not enough space above or below
+                // Position at top or bottom edge with minimum padding
+                if (spaceBelow >= viewportHeight / 2) {
+                  // More space below than above
+                  top = Math.min(nodeScreenY + padding, viewportHeight - popupHeight - padding);
+                } else {
+                  // More space above than below
+                  top = padding;
+                }
+              }
+
+              // Ensure the popup stays within viewport bounds
+              left = Math.max(padding, Math.min(left, viewportWidth - popupWidth - padding));
+              top = Math.max(padding, Math.min(top, viewportHeight - popupHeight - padding));
+
+              return { left: `${left}px`, top: `${top}px` };
+            })(),
             background: 'white',
             border: 'none',
             borderRadius: '12px',
@@ -916,12 +1017,11 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
             zIndex: 1000,
             width: '380px',
             maxWidth: 'calc(100vw - 20px)',
-            overflow: 'visible', // Changed from 'auto' to allow the arrow to be visible outside the popup
+            overflow: 'auto',
             maxHeight: '80vh',
             fontFamily: "'Inter', sans-serif",
             transition: 'all 0.2s ease-out',
           }}
-          data-position={calculateOptimalPopupPosition(relationshipInfo.x, relationshipInfo.y, width, height, 380, 400)['data-position']}
         >
           {/* Header with tool name and category */}
           <div style={{
@@ -1021,7 +1121,7 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
                     e.currentTarget.style.backgroundColor = colorPalette.darkGreen;
                     e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
                   }}
-                  onClick={(e) => {
+                  onClick={() => {
                     console.log('Link clicked:', relationshipInfo.tnfdLink);
                   }}
                 >
@@ -1233,84 +1333,7 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
   );
 };
 
-// Function to calculate the optimal position for the popup
-const calculateOptimalPopupPosition = (
-  nodeX: number,
-  nodeY: number,
-  containerWidth: number,
-  containerHeight: number,
-  popupWidth: number = 380,
-  popupHeight: number = 400, // Estimated average height
-) => {
-  // This function calculates the optimal position for the popup and also determines
-  // if and where to show a pointer arrow
-  // Get window dimensions to ensure we stay within viewport
-  const windowWidth = window.innerWidth;
-  const windowHeight = window.innerHeight;
 
-  // Calculate available space in each direction
-  const spaceRight = Math.min(containerWidth - nodeX, windowWidth - nodeX);
-  const spaceLeft = nodeX; // Space to the left is simply the X coordinate
-  const spaceBelow = Math.min(containerHeight - nodeY, windowHeight - nodeY);
-  const spaceAbove = nodeY; // Space above is simply the Y coordinate
-
-  // Add padding between node and popup
-  const padding = 15;
-
-  // Default position (will be overridden)
-  let position: {[key: string]: string} = {};
-
-  // Track the position of the popup relative to the node
-  // This will be used to determine where to place the pointer arrow
-  let popupPosition: 'top' | 'right' | 'bottom' | 'left' | 'center' = 'center';
-
-  // First determine horizontal position
-  if (spaceRight >= popupWidth + padding) {
-    // Enough space to the right
-    position.left = `${nodeX + padding}px`;
-    popupPosition = 'right';
-  } else if (spaceLeft >= popupWidth + padding) {
-    // Enough space to the left
-    position.left = `${Math.max(padding, nodeX - popupWidth - padding)}px`;
-    popupPosition = 'left';
-  } else {
-    // Not enough space on either side, center horizontally and ensure it's visible
-    const leftPos = Math.max(padding, Math.min(windowWidth - popupWidth - padding, nodeX - popupWidth / 2));
-    position.left = `${leftPos}px`;
-    // Horizontal position will depend on vertical position
-  }
-
-  // Then determine vertical position
-  if (spaceBelow >= popupHeight + padding) {
-    // Enough space below
-    position.top = `${nodeY + padding}px`;
-    if (popupPosition !== 'left' && popupPosition !== 'right') {
-      popupPosition = 'bottom';
-    }
-  } else if (spaceAbove >= popupHeight + padding) {
-    // Enough space above
-    position.top = `${Math.max(padding, nodeY - popupHeight - padding)}px`;
-    if (popupPosition !== 'left' && popupPosition !== 'right') {
-      popupPosition = 'top';
-    }
-  } else {
-    // Not enough space above or below, position to maximize visibility
-    if (spaceBelow >= spaceAbove) {
-      // More space below than above, position as high as possible while keeping in view
-      position.top = `${Math.max(padding, windowHeight - popupHeight - padding)}px`;
-      popupPosition = 'center'; // No clear direction in this case
-    } else {
-      // More space above than below, position at top of screen with padding
-      position.top = `${padding}px`;
-      popupPosition = 'center'; // No clear direction in this case
-    }
-  }
-
-  // Add a data attribute for the popup position that can be used for styling the arrow
-  position['data-position'] = popupPosition;
-
-  return position;
-};
 
 const drag = (simulation: d3.Simulation<Node, undefined>) => {
   function dragstarted(event: any) {

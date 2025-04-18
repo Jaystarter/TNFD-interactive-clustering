@@ -94,12 +94,9 @@ const fetchToolDetails = async (toolId: string): Promise<{
   tnfdLink?: string;
 }> => {
   try {
-    console.log('Fetching details for tool ID:', toolId);
-
     // Try to load the CSV file with links
     const response = await fetch('/TNFD Prototype Data with links.csv');
     if (!response.ok) {
-      console.error('Failed to load CSV file:', response.status);
       return {};
     }
 
@@ -108,7 +105,6 @@ const fetchToolDetails = async (toolId: string): Promise<{
 
     // Parse header line
     const headers = parseCSVLine(lines[0]);
-    console.log('CSV Headers:', headers);
 
     // Find the index of each column we need
     const nameIndex = headers.findIndex(h => h === 'Tool Name');
@@ -118,11 +114,6 @@ const fetchToolDetails = async (toolId: string): Promise<{
     const environmentTypeIndex = headers.findIndex(h => h === 'Environment Type');
     const descriptionIndex = headers.findIndex(h => h === 'Description');
     const linkIndex = headers.findIndex(h => h === 'TNFD Link');
-
-    console.log('Column indices:', {
-      nameIndex, primaryFunctionIndex, dataSourcesIndex,
-      targetUserIndex, environmentTypeIndex, descriptionIndex, linkIndex
-    });
 
     // Find the tool in the CSV data
     for (let i = 1; i < lines.length; i++) {
@@ -136,8 +127,6 @@ const fetchToolDetails = async (toolId: string): Promise<{
       const toolIdFromName = toolName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
       if (toolIdFromName === toolId) {
-        console.log('Found matching tool:', toolName);
-
         // Extract all the details
         const result: Record<string, string> = {};
 
@@ -165,17 +154,12 @@ const fetchToolDetails = async (toolId: string): Promise<{
           result.tnfdLink = values[linkIndex];
         }
 
-        console.log('Tool details found:', result);
-        console.log('TNFD Link:', result.tnfdLink);
-
         return result;
       }
     }
 
-    console.log('Tool not found in CSV:', toolId);
     return {}; // Tool not found
   } catch (error) {
-    console.error('Error fetching tool details:', error);
     return {};
   }
 };
@@ -290,12 +274,6 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
     if (!simulation) return;
 
     const toolsToUse = toolsData || tools;
-
-    // Debug: Log the first tool to see available properties
-    if (toolsToUse.length > 0) {
-      console.log("Sample tool properties:", Object.keys(toolsToUse[0]));
-      console.log("Sample tool data:", toolsToUse[0]);
-    }
 
     const existingNodesMap = new Map(nodesRef.current.map(node => [node.id, node]));
 
@@ -465,13 +443,6 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
             .join(' & ');
         }
 
-        // Debug information
-        console.log(`Cluster ${clusterId}:`, {
-          nodes: clusterNodes.map(n => n.name),
-          categories: sortedCategories,
-          secondaryFeature
-        });
-
         clusterNodes.forEach(node => {
           node.cluster = clusterId;
         });
@@ -575,14 +546,6 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
         try {
           const toolDetails = await fetchToolDetails(d.id);
 
-          // Debug logging
-          console.log('Tool details fetched:', toolDetails);
-          console.log('TNFD Link:', toolDetails.tnfdLink);
-
-          // Create a direct link for testing if needed
-          const directLink = `https://tnfd.global/tools-platforms/${d.id}/`;
-          console.log('Direct link (fallback):', directLink);
-
           const nodeX = d.x || 0;
           const nodeY = d.y || 0;
           const screenX = zoomTransformRef.current.applyX(nodeX);
@@ -600,18 +563,12 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
             targetUser: toolDetails.targetUser,
             environmentType: toolDetails.environmentType,
             description: toolDetails.description,
-            tnfdLink: toolDetails.tnfdLink || directLink,
+            tnfdLink: toolDetails.tnfdLink,
             connections: nodeConnections,
             _nodeId: d.id
           });
         } catch (error) {
-          console.error('Error fetching tool details:', error);
-
-          // Fallback to basic info if details can't be fetched
-          // Create a direct link for testing if needed
           const directLink = `https://tnfd.global/tools-platforms/${d.id}/`;
-          console.log('Using fallback direct link:', directLink);
-
           const nodeX = d.x || 0;
           const nodeY = d.y || 0;
           const screenX = zoomTransformRef.current.applyX(nodeX);
@@ -652,12 +609,6 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
 
       const currentClusters = findClusters();
 
-      console.log('Found clusters:', currentClusters.map(c => ({
-        id: c.id,
-        nodeCount: c.nodes.length,
-        nodeNames: c.nodes.map(n => n.name)
-      })));
-
       // Reset all node cluster assignments first
       nodes.forEach(node => {
         node.cluster = undefined;
@@ -669,12 +620,6 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
           node.cluster = cluster.id;
         });
       });
-
-      // Log nodes and their cluster assignments
-      console.log('Node cluster assignments:', nodes.map(n => ({
-        name: n.name,
-        cluster: n.cluster
-      })));
 
       // Force an immediate style update with direct attribute manipulation
       // First, get all node elements
@@ -860,9 +805,6 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
             .style('font-style', 'italic')
             .style('fill', d3.rgb(cluster.color).darker(1).toString())
             .style('pointer-events', 'none');
-
-          // Debug output to console to verify secondary features
-          console.log(`Cluster ${cluster.id}: ${cluster.category} - Secondary: ${cluster.secondaryFeature}`);
         }
 
       });
@@ -1079,7 +1021,6 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
                     e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
                   }}
                   onClick={() => {
-                    console.log('Link clicked:', relationshipInfo.tnfdLink);
                   }}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

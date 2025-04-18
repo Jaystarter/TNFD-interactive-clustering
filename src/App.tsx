@@ -124,8 +124,14 @@ function App() {
   const [rawCsvData, setRawCsvData] = useState<string | null>(null);
   const [controlsExpanded, setControlsExpanded] = useState(false);
 
-  // Filter states for different criteria
-  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  // Static high-level buckets for category filter
+  const availableCategories = [
+    'Measurement',
+    'Assessment',
+    'Finance and Investment',
+    'Restoration',
+    'Monitoring'
+  ];
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   // Additional filter criteria
@@ -186,10 +192,6 @@ function App() {
           setTools(defaultTools);
         } else {
           setTools(processedTools);
-
-          // Extract unique categories from the tools
-          const categories = Array.from(new Set(processedTools.map(tool => tool.category)));
-          setAvailableCategories(categories);
           setSelectedCategories([]); // Reset selected categories
 
           // Extract other filter options from the raw CSV data
@@ -415,11 +417,6 @@ function App() {
       );
     }
 
-    // Apply category filter
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter(tool => selectedCategories.includes(tool.category));
-    }
-
     // Get the raw CSV data for more detailed filtering
     if (rawCsvData) {
       try {
@@ -428,6 +425,20 @@ function App() {
           row['Tool Name']?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
           row
         ]));
+
+        // Apply high-level category filter on CSV Primary Function
+        if (selectedCategories.length > 0) {
+          const normalizedCats = selectedCategories.map(c => c.toLowerCase());
+          filtered = filtered.filter(tool => {
+            const csvTool = toolMap.get(tool.id);
+            if (!csvTool) return false;
+
+            const funcs = (csvTool['Primary Function'] || '')
+              .split(';')
+              .map((s: string) => s.trim().toLowerCase().replace(/&/g, 'and'));
+            return funcs.some((f: string) => normalizedCats.includes(f));
+          });
+        }
 
         // Apply primary function filter
         if (selectedFunctions.length > 0) {

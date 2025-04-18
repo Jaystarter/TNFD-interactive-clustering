@@ -12,15 +12,27 @@ export interface Category {
 }
 
 export const categories: Category[] = [
-  { name: 'Biodiversity', color: '#8BC34A' },
-  { name: 'Agriculture', color: '#FF9800' },
-  { name: 'Forestry', color: '#4CAF50' },
-  { name: 'Data', color: '#2196F3' },
-  { name: 'Marine', color: '#03A9F4' },
-  { name: 'Water', color: '#00BCD4' },
-  { name: 'Finance', color: '#4CAF50' },
-  { name: 'Policy', color: '#2196F3' }
+  { name: 'Finance & Investment', color: '#6B9080' },
+  { name: 'Assessment & Measurement', color: '#6B9080' },
+  { name: 'Data & Monitoring', color: '#6B9080' },
+  { name: 'Planning & Strategy', color: '#6B9080' },
+  { name: 'Policy & Governance', color: '#6B9080' },
+  { name: 'Education & Guidance', color: '#6B9080' },
+  { name: 'Marine Ecosystems', color: '#6B9080' },
+  { name: 'Freshwater Resources', color: '#6B9080' },
+  { name: 'Terrestrial & Forests', color: '#6B9080' },
+  { name: 'Agriculture & Land Use', color: '#6B9080' },
+  { name: 'Other', color: '#6B9080' }
 ];
+
+// Color palette from the provided image
+export const colorPalette = {
+  darkGreen: '#6B9080',
+  mediumGreen: '#A4C3B2',
+  lightGreen: '#CCE3DE',
+  paleBlue: '#EAF4F4',
+  paleGreen: '#F6FFF8'
+};
 
 export const tools: Tool[] = [
   {

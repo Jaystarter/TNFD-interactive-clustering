@@ -1,0 +1,188 @@
+Tool Name,Primary Function,Data Sources,Target User/Client,Environment Type,Description
+ABSA Natural Capital Tool,Impact assessment,"Satellite imagery, GIS data, company operational data",Financial institutions,Multiple,A tool designed to help financial institutions assess natural capital impacts and dependencies of their portfolio companies
+ACTIAM Biodiversity Footprint for Financial Institutions,Footprinting,"Corporate and sector-level data, GLOBIO model",Financial institutions,Multiple,Measures the biodiversity footprint of investments and compares different investment portfolios
+AgBalance,Impact assessment,"Farm operational data, life cycle assessment",Agricultural sector,Terrestrial,Assesses sustainability in agriculture by measuring biodiversity impacts of farming practices
+Agricultural Life Cycle Assessment Tool,Impact assessment,"Farm data, environmental indicators",Agricultural sector,Terrestrial,Evaluates environmental impacts of agricultural production systems using life cycle assessment methodology
+Aligning Biodiversity Measures for Business,Framework,Various data sources based on selected indicators,Businesses,Multiple,A framework to help businesses select and implement appropriate biodiversity indicators
+AquaVan,Risk assessment,"Water quality data, species occurrence",Water management sector,Freshwater,Assesses biodiversity risks in freshwater ecosystems with a focus on water quality
+Artificial Intelligence for Environment & Sustainability,Data analysis,"Satellite imagery, wildlife cameras, acoustic sensors","Researchers, conservation organizations",Multiple,Uses AI to process large environmental datasets to monitor biodiversity and ecosystem changes
+ASN Bank Biodiversity Footprint,Footprinting,"Corporate data, environmental pressure data",Financial institutions,Multiple,Calculates the biodiversity footprint of loans and investments
+Banco de Hábitat Biodiversity Measurement System,Offset calculation,"Field surveys, habitat quality assessments","Developers, governments",Multiple,Quantifies biodiversity losses and gains for offset projects
+BCG's Biodiversity Impact Assessment,Impact assessment,"Corporate data, environmental indicators",Corporations,Multiple,A corporate tool for assessing biodiversity impacts across operations and supply chains
+Ben-U,Impact assessment,"Land use data, species occurrence","Developers, planners",Urban,Measures urban biodiversity and ecosystem services to improve urban planning
+BioBloq,Offset calculation,"Species data, habitat quality, ecosystem services","Developers, planners",Multiple,Calculates biodiversity losses and gains for development projects
+Biocarbon Registry,Carbon and biodiversity crediting,"Forest inventory, carbon stocks, species data","Project developers, carbon markets",Terrestrial,Integrates biodiversity considerations into carbon offset projects
+Biodiversity Calculator for Conservation Trust Funds,Financial planning,"Conservation costs, species data","Conservation organizations, funds",Multiple,Helps conservation funds estimate financial needs for biodiversity conservation
+Biodiversity Footprint Calculator,Footprinting,"Land use data, pressure indicators",Businesses,Terrestrial,Calculates corporate biodiversity footprint based on land use and resource consumption
+Biodiversity Footprint Financial Institutions,Footprinting,"Investment portfolio data, environmental impact factors",Financial institutions,Multiple,Measures biodiversity impact of investment portfolios
+Biodiversity Impact Metric,Impact assessment,"Land use, commodity data, species richness",Businesses with agricultural supply chains,Terrestrial,Measures impacts of agricultural commodity sourcing on biodiversity
+Biodiversity Indicators for Extractive Companies,Impact assessment,"Site-level data, species lists, habitat quality",Extractive sector,Multiple,Framework of indicators to measure biodiversity performance in mining and oil & gas operations
+Biodiversity Intactness Index,Status assessment,"Land use data, species occurrence, abundance","Researchers, policy makers",Terrestrial,Indicates the average abundance of original species relative to their abundance in undisturbed habitat
+Biodiversity Metric 3.0,Offset calculation,"Habitat condition, area, distinctiveness","Developers, planners",Multiple,Calculates biodiversity net gain/loss for development projects in England
+Biodiversity Module in the Textile Exchange's Corporate Fiber & Materials Benchmark,Benchmarking,"Corporate practices, materials data",Textile industry,Multiple,Benchmarks textile companies' biodiversity performance in material sourcing
+Biodiversity Net Gain Model,Offset calculation,"Habitat data, species occurrence, ecological functionality","Developers, planners",Multiple,Calculates biodiversity net gain requirements for development projects
+Biodiversity Performance Tool,Assessment,"Farm management practices, landscape features","Farmers, food companies",Agricultural,Evaluates farm-level biodiversity performance and suggests improvement measures
+Biodiversity Risk and Opportunity Assessment,Risk assessment,"Supply chain data, ecosystem services, species data",Agricultural businesses,Multiple,Identifies biodiversity-related risks and opportunities in agricultural supply chains
+Biodiversity Sensitivity Index,Risk assessment,"Species distribution, protection status","Financial institutions, businesses",Multiple,Maps biodiversity sensitivity to help businesses identify high-risk areas
+Biofin Workbook,Financial planning,"Conservation costs, policy instruments",Governments,Multiple,Helps countries determine financial needs for biodiversity conservation and develop resource mobilization strategies
+Biological Condition Gradient,Status assessment,"Water quality data, biological assemblage data",Water resource managers,Freshwater,Framework for describing biological condition of aquatic ecosystems
+Biologically Significant Area Standard,Certification,"Species data, ecosystem indicators, connectivity","Protected area managers, developers",Multiple,Standard for identifying and managing areas of high biodiversity value
+BioScore,Impact assessment,"Species occurrence, environmental pressure data","Policy makers, researchers",Multiple,Evaluates effects of environmental pressures on European biodiversity
+BISM,Impact assessment,"Land use data, species occurrence, ecosystem services","Businesses, developers",Multiple,Measures direct and indirect impacts of business activities on biodiversity
+Blue Natural Capital Financing Facility,Financial mechanism,"Ecosystem services data, carbon sequestration",Coastal project developers,"Marine, Coastal",Supports projects that combine coastal ecosystem restoration with sustainable business models
+BNG Metric,Offset calculation,"Habitat data, condition assessments","Developers, consultants",Multiple,Calculates biodiversity net gain for development projects
+Brightway Biodiversity Ecosystem Services,Impact assessment,"Life cycle inventory data, ecosystem service indicators",Product manufacturers,Multiple,Assesses biodiversity and ecosystem service impacts in life cycle assessment
+B-INTACT,Impact assessment,"Project data, land use change, species data",Agricultural project developers,Terrestrial,Ex-ante assessment of biodiversity impact of agricultural investment projects
+BTR Biodiversity Monitoring Protocol,Monitoring,"Field surveys, species occurrence","Building managers, developers",Urban,Monitors biodiversity in built environments to improve green building certification
+Business and Biodiversity Offset Program,Framework,"Habitat data, species occurrence, ecosystem functions","Developers, governments",Multiple,Framework for designing and implementing biodiversity offsets
+By Bel Global Environmental Footprint Tool,Footprinting,"Supply chain data, life cycle assessment",Food industry,Multiple,Measures environmental footprint including biodiversity impacts for food products
+Carbon Footprint Evaluation Tool,Impact assessment,"Carbon emissions, land use data",Project developers,Multiple,Evaluates carbon impacts of projects with consideration of biodiversity co-benefits
+CBF Tool,Footprinting,"Corporate data, supply chain activities",Businesses,Multiple,Measures corporate biodiversity footprint across operations and supply chain
+CDC Biodiversity Guidance Note,Framework,"Investment portfolio data, sectoral impacts",Development finance institutions,Multiple,Guidance for integrating biodiversity considerations into development finance
+ClearWater Biodiversity Index,Status assessment,"Water quality data, macroinvertebrate surveys","Water managers, regulators",Freshwater,Assesses freshwater ecosystem health through biodiversity indicators
+Climate Trace,Monitoring,"Satellite data, GHG emissions","Policy makers, businesses",Multiple,Tracks greenhouse gas emissions with associated biodiversity impacts
+CO2Stone,Impact assessment,"Geological data, carbon sequestration",Carbon capture projects,Terrestrial,Evaluates biodiversity impacts of carbon capture and storage in geological formations
+Coastal Resilience Tool,Risk assessment,"Coastal habitat data, climate projections","Coastal planners, communities",Coastal,Maps coastal habitats to identify areas important for both biodiversity and climate resilience
+Community Voice Method,Stakeholder engagement,"Community knowledge, traditional ecological knowledge",Conservation planners,Multiple,Incorporates local and indigenous knowledge into biodiversity assessments
+CONNECTS,Offset calculation,"Habitat connectivity, species movement data","Conservation planners, developers",Terrestrial,Evaluates landscape connectivity for biodiversity conservation planning
+Conservation Evidence,Knowledge database,"Scientific studies, intervention effectiveness",Conservation practitioners,Multiple,Evidence-based platform for assessing effectiveness of conservation interventions
+Cool Farm Tool,Impact assessment,"Farm management data, GHG emissions, water use",Agricultural sector,Terrestrial,Farm-level assessment tool with biodiversity module focusing on agricultural practices
+CORDEX,Climate modeling,"Climate projections, species distribution models","Researchers, policy makers",Multiple,Provides regional climate projections to assess biodiversity vulnerability to climate change
+Corporate Biodiversity Benchmarking,Benchmarking,"Corporate reporting, management practices",Businesses,Multiple,Benchmarks corporate performance on biodiversity management and reporting
+Corporate Ecosystem Services Review,Risk assessment,"Ecosystem services data, corporate dependencies",Businesses,Multiple,Helps businesses identify risks and opportunities from ecosystem service dependencies
+Corporate Water Footprint (CWF) Accounting,Footprinting,"Water use data, watershed impacts",Businesses,Freshwater,Assesses corporate impacts on freshwater ecosystems and biodiversity
+CPD,Reporting framework,Corporate environmental data,Businesses,Multiple,Environmental disclosure system that includes biodiversity metrics
+CrossCheck,Verification,"Offset project data, conservation outcomes",Conservation finance,Multiple,Verifies biodiversity claims in conservation finance projects
+Deep Sea Mining Impact Model,Impact assessment,"Habitat data, species vulnerability","Mining companies, regulators",Marine,Assesses potential biodiversity impacts of deep sea mining operations
+DEFRA Biodiversity Metric,Offset calculation,"Habitat data, condition assessments","Developers, consultants",Multiple,UK government tool for calculating biodiversity net gain in development
+Develop-marine,Impact assessment,"Marine habitat data, sensitivity indicators",Coastal developers,Marine,Assesses biodiversity impacts of coastal and marine development projects
+DPSIR framework,Conceptual framework,Various environmental indicators,Policy makers,Multiple,"Framework linking drivers, pressures, state, impact and responses for biodiversity"
+Durrell Index,Status assessment,Population data for threatened species,Conservation organizations,Multiple,Measures conservation progress for highly threatened species
+eDNA metabarcoding,Monitoring,Environmental DNA samples,"Researchers, conservation practitioners",Multiple,Uses DNA in environmental samples to detect species presence and biodiversity
+Ecological Connectivity Index,Connectivity assessment,"Landscape structure, species movement data","Planners, conservation organizations",Terrestrial,Measures landscape connectivity for biodiversity conservation planning
+Ecologically or Biologically Significant Marine Areas (EBSAs),Area identification,"Marine species data, oceanographic data",Marine conservation planners,Marine,Framework for identifying marine areas important for biodiversity
+EDGE of Existence,Prioritization,"Phylogenetic data, extinction risk",Conservation organizations,Multiple,Prioritizes species for conservation based on evolutionary distinctiveness and threat status
+Ecosystem Natural Capital Accounts,Accounting,"Ecosystem extent, condition, services",Governments,Multiple,National-level accounting system for tracking ecosystem assets and services
+Ecosystem-Based Adaptation M&E Tool,Monitoring,"Climate vulnerability, ecosystem services",Adaptation project managers,Multiple,Monitors effectiveness of ecosystem-based adaptation projects for climate resilience
+ENCORE,Risk assessment,"Ecosystem services, business dependencies",Financial institutions,Multiple,Maps dependencies of business sectors on ecosystem services to assess natural capital risk
+EnhanceBio,Impact assessment,"Land management practices, species data",Land managers,Terrestrial,Assesses biodiversity impacts of different land management scenarios
+Environment Agency NCAMM,Risk assessment,"Water quality, habitat data, species occurrence",Water managers,Freshwater,Natural Capital Asset Management Model for freshwater ecosystems
+Environmental Impact Assessment,Impact assessment,Multiple environmental indicators,"Developers, regulators",Multiple,Regulatory framework for assessing biodiversity impacts of development projects
+ENVISION,Scenario planning,"Land use, ecosystem services, biodiversity indicators",Land use planners,Terrestrial,Spatially-explicit tool for assessing biodiversity outcomes of land use scenarios
+ESG-Tool for Development Banks,Risk assessment,"Environmental, social, governance indicators",Development banks,Multiple,Tool for assessing biodiversity within broader ESG risk framework
+ESGAP,Gap analysis,"Environmental policy targets, indicators",Policy makers,Multiple,Identifies gaps between environmental sustainability goals and current states
+Ethos-EIR,Risk assessment,"Corporate practices, sector impacts",Investors,Multiple,Assesses companies' management of biodiversity risks and impacts
+EU Business @ Biodiversity Platform,Knowledge sharing,"Corporate case studies, best practices",Businesses,Multiple,Platform for businesses to share biodiversity assessment approaches
+EU Taxonomy for Sustainable Activities,Classification,"Economic activities, technical screening criteria","Financial institutions, businesses",Multiple,Classification system defining environmentally sustainable activities including biodiversity
+EXCITES,Impact assessment,"Satellite imagery, habitat data, species occurrence",Conservation planners,Multiple,Uses earth observation data to track biodiversity and ecosystem change
+FairWild,Certification,"Harvesting practices, species status","Wild plant harvesters, companies",Terrestrial,Certification system for sustainable wild plant harvesting with biodiversity considerations
+FAO-LEAP,Framework,Livestock production metrics,Livestock sector,Multiple,Guidelines for assessing biodiversity in livestock production systems
+FERN,Risk assessment,"Satellite imagery, deforestation data",Financial institutions,Forests,Identifies forest-related risks including biodiversity loss in investment portfolios
+Fisheries Assessment Tool,Impact assessment,"Fish stock data, bycatch, habitat impacts",Fisheries managers,Marine,Assesses biodiversity impacts of fishing practices
+FishSource,Status assessment,"Fish stock assessments, management effectiveness",Seafood industry,Marine,Provides information on sustainability of fish stocks including biodiversity impacts
+FLORABANK,Data repository,Plant species occurrence,"Conservationists, researchers",Terrestrial,Database of plant distribution for biodiversity assessment
+Floral Footprint Model,Footprinting,"Land use change, habitat quality",Businesses,Terrestrial,Assesses corporate impacts on plant biodiversity
+Frontier Earth,Monitoring,"Satellite imagery, AI analysis",Conservation organizations,Multiple,Uses AI and satellite data to monitor biodiversity at landscape scale
+FSFL,Impact assessment,"Forest management data, habitat quality",Forestry sector,Forests,Assesses biodiversity impacts of forest management practices
+GBIF,Data repository,Species occurrence data,"Researchers, conservationists",Multiple,Global biodiversity database providing foundation data for many assessment tools
+GBS,Footprinting,"Economic activity data, pressure-impact models","Businesses, financial institutions",Multiple,Quantifies biodiversity footprint of economic activities in MSA.km²
+GDG,Impact assessment,"Land use, pollution, climate change data",Businesses,Multiple,Measures biodiversity impact from direct operations and supply chains
+GLOBIO,Modeling,"Land use, infrastructure, climate change data","Policy makers, researchers",Terrestrial,Models human impacts on terrestrial biodiversity at global and regional scales
+Global Biodiversity Score,Footprinting,"Pressure data, GLOBIO model","Businesses, financial institutions",Multiple,Quantifies corporate biodiversity footprint across operations and value chain
+Global Coral Reef Monitoring Network,Monitoring,"Coral cover, fish abundance, reef health","Reef managers, researchers",Marine,Standardized methodology for monitoring coral reef biodiversity
+Global Environment Facility Tracking Tool,Monitoring,Protected area effectiveness indicators,Conservation project managers,Multiple,Tracks biodiversity conservation outcomes in GEF-funded projects
+Global Forest Watch,Monitoring,"Satellite imagery, forest cover change","Forest managers, conservationists",Forests,Monitors forest loss and associated biodiversity impacts
+Global Invasive Species Database,Risk assessment,"Invasive species distribution, impacts",Conservation managers,Multiple,Information on invasive species affecting biodiversity
+Global Ocean Biodiversity Initiative,Area identification,"Marine biodiversity data, oceanography",Marine conservationists,Marine,Identifies ecologically significant areas in marine ecosystems
+Global Reporting Initiative,Reporting framework,Corporate environmental indicators,Businesses,Multiple,Standardized sustainability reporting framework including biodiversity metrics
+Global Seagrass Monitoring Network,Monitoring,"Seagrass extent, condition","Coastal managers, researchers",Marine,Standardized methodology for monitoring seagrass ecosystems
+Global Standard for Nature-based Solutions,Certification,"Project design, implementation, outcomes",Project developers,Multiple,IUCN standard for verifying nature-based solutions with biodiversity benefits
+GPM,Impact assessment,"Land use change, ecosystem integrity","Businesses, project developers",Multiple,Measures impacts of projects on biodiversity and ecosystem services
+GRI 304: Biodiversity,Reporting framework,Corporate biodiversity impacts,Businesses,Multiple,Specific biodiversity reporting standard within GRI framework
+Habitat Condition Assessment,Status assessment,"Habitat quality indicators, ecological functions","Land managers, consultants",Multiple,Assesses ecological condition of habitats against reference states
+Habitat Equivalency Analysis,Offset calculation,"Habitat quality, area, ecosystem services","Regulators, restoration practitioners",Multiple,Calculates compensation requirements for habitat damages
+Habitat Quality/InVEST,Status assessment,"Land use, threat intensity, habitat sensitivity","Land managers, conservation planners",Multiple,Maps habitat quality based on threats and land use patterns
+HCS Approach,Area identification,"Carbon stock, vegetation structure",Agricultural sector,Forests,Identifies forest areas for conservation in agricultural landscapes
+Healthy Ecosystem Framework,Framework,"Ecosystem processes, biodiversity indicators",Land managers,Multiple,Framework for assessing ecosystem health including biodiversity
+Henry Doubleday Living Soils,Status assessment,"Soil biodiversity, soil health indicators",Farmers,Terrestrial,Assesses soil biodiversity as indicator of agricultural sustainability
+HEP - Habitat Evaluation Procedure,Impact assessment,"Habitat suitability, area","Wildlife managers, developers",Multiple,Quantifies wildlife habitat value for impact assessment and mitigation planning
+Heronbridge Corporate Biodiversity Index,Benchmarking,"Corporate practices, site-level biodiversity",Businesses,Multiple,Corporate biodiversity performance index for businesses
+HH2,Risk assessment,"Climate vulnerability, ecological threshold",Conservation planners,Multiple,Identifies areas of high biodiversity value vulnerable to climate change
+IBAT,Data provision,"Protected areas, key biodiversity areas, threatened species","Businesses, financial institutions",Multiple,Provides biodiversity data for corporate risk screening and assessment
+iBOL,Monitoring,"DNA barcodes, species identification","Researchers, regulators",Multiple,DNA barcoding initiative supporting biodiversity identification and monitoring
+IFRS/ISSB,Reporting framework,"Financial materiality, sustainability disclosure",Businesses,Multiple,Sustainability-related financial disclosure standards including biodiversity
+IMAP Common Indicators,Monitoring,Marine biodiversity indicators,"Policy makers, marine managers",Marine,Standardized indicators for monitoring Mediterranean marine biodiversity
+Impact Cubed,Footprinting,"Investment portfolio data, environmental metrics",Investors,Multiple,Measures biodiversity impact of investment portfolios
+INSURE,Risk assessment,"Ecosystem services, infrastructure dependence",Infrastructure developers,Multiple,"Assesses relationships between infrastructure, biodiversity and ecosystem services"
+IRIS+,Metrics system,Impact investment indicators,Impact investors,Multiple,System for measuring and managing impact including biodiversity outcomes
+I-Score,Impact assessment,"Economic activities, environmental footprint",Businesses,Multiple,Measures environmental impacts including biodiversity for business activities
+ISSC Norms,Standards,Corporate sustainability performance,Businesses,Multiple,Sustainability standards including biodiversity management requirements
+IUCN Red List of Ecosystems,Risk assessment,"Ecosystem distribution, function, threats","Conservation planners, policy makers",Multiple,Assesses risk of ecosystem collapse using standardized criteria
+IUCN Red List of Threatened Species,Status assessment,"Species population, range, threats","Conservation organizations, researchers",Multiple,Global inventory of conservation status of species
+IUCN STAR,Prioritization,"Species threat abatement, restoration potential","Conservation planners, businesses",Multiple,Measures potential contribution of locations/actions to reducing species extinction risk
+JRC DOPA,Monitoring,"Protected area indicators, ecological characteristics",Protected area managers,Multiple,Provides indicators on protected areas status and pressures
+Kering EP&L,Accounting,Supply chain environmental impacts,Fashion industry,Multiple,Environmental profit and loss accounting including biodiversity impacts
+Key Biodiversity Areas,Area identification,"Species presence, ecosystem services",Conservation planners,Multiple,Identifies sites of global significance for biodiversity conservation
+LEAP Nature Risk Assessment,Risk assessment,"Business operations, dependencies, impacts",Financial institutions,Multiple,Framework for financial institutions to assess nature-related risks
+LedaFlow,Impact assessment,"Oil and gas operations, environmental conditions",Energy sector,Marine,Assesses potential marine biodiversity impacts from oil and gas operations
+Life Cycle Assessment,Impact assessment,"Product life cycle data, environmental pressures",Product manufacturers,Multiple,Assesses environmental impacts throughout product life cycles
+Living Planet Index,Status assessment,Vertebrate population abundance,"Conservation organizations, policy makers",Multiple,Measures trends in populations of vertebrate species
+Local Biodiversity Intactness Index,Status assessment,"Species occurrence, abundance, land use","Land managers, local authorities",Terrestrial,Local-scale application of the Biodiversity Intactness Index
+Making Peace with Nature,Framework,"Environmental pressures, policy responses",Policy makers,Multiple,UNEP framework linking biodiversity loss with other environmental challenges
+Mariner Tool,Risk assessment,"Shipping activities, sensitive marine areas",Shipping industry,Marine,Assesses shipping-related risks to marine biodiversity
+MIMES,Modeling,"Ecosystem services, economic activities",Land use planners,Multiple,Models interactions between ecosystems and economic systems
+MSCI Biodiversity Screening,Screening,"Corporate practices, sector impacts",Investors,Multiple,Screens investment portfolios for biodiversity-related risks and impacts
+NASA-NEX,Data provision,"Climate projections, ecosystem data","Researchers, conservation planners",Multiple,Provides data for modeling climate change impacts on biodiversity
+National Capital Coalition / Capitals Coalition,Framework,Natural capital dependencies and impacts,Businesses,Multiple,Framework for integrating natural capital including biodiversity into decision-making
+Naturescore,Rating,Corporate biodiversity performance,Investors,Multiple,Rates companies on biodiversity performance for investment decisions
+NatureVest,Investment screening,"Conservation outcomes, financial returns",Impact investors,Multiple,Evaluates biodiversity benefits of conservation investments
+NBS Benefits Explorer,Impact assessment,"Nature-based solutions, ecosystem services",Urban planners,Urban,Assesses biodiversity benefits of nature-based solutions in cities
+NCS Navigator,Planning,"Natural climate solutions, biodiversity co-benefits",Land managers,Multiple,Identifies opportunities for natural climate solutions with biodiversity benefits
+NDVI Biodiversity Index,Monitoring,Satellite vegetation indices,Land managers,Terrestrial,Uses satellite data to monitor ecosystem productivity as biodiversity proxy
+NII,Framework,"Development impacts, biodiversity gains",Developers,Multiple,Framework for planning developments with net improvements for biodiversity
+Norway Nature Index,Status assessment,"Species abundance, ecosystem indicators",Policy makers,Multiple,National-level biodiversity status assessment system
+OECD Environmental Indicators,Monitoring,"Environmental pressure, state, response indicators",Policy makers,Multiple,Framework for tracking environmental progress including biodiversity
+PBAF,Framework,Investment impacts on biodiversity,Financial institutions,Multiple,Framework for financial institutions to assess biodiversity footprint
+Planetary Boundaries,Conceptual framework,"Earth system processes, safe operating space","Researchers, policy makers",Multiple,Framework including biodiversity integrity as key planetary boundary
+PLUM Model,Modeling,"Land use change, agricultural production","Policy makers, researchers",Terrestrial,Projects land use change impacts on biodiversity from agricultural policies
+PREDICTs,Modeling,"Land use intensity, biodiversity metrics","Researchers, policy makers",Multiple,Models relationship between human pressures and biodiversity outcomes
+Product Biodiversity Footprint,Footprinting,"Product life cycle data, species impacts",Product manufacturers,Multiple,Assesses biodiversity impacts of products throughout their life cycle
+Protected Planet,Database,"Protected area data, coverage statistics",Conservation planners,Multiple,Global database on protected areas important for biodiversity conservation
+RAWES,Rapid assessment,Wetland ecosystem services,Wetland managers,Freshwater,Rapidly assesses wetland ecosystem services including biodiversity
+RIBITS,Offset tracking,"Mitigation banking data, credit transactions","Regulators, developers",Multiple,Tracks biodiversity offset credits and transactions
+SASB,Reporting framework,Industry-specific sustainability metrics,Businesses,Multiple,Sustainability accounting standards including biodiversity metrics
+SBTN,Target setting,Science-based environmental targets,Businesses,Multiple,Framework for setting corporate targets for nature including biodiversity
+Scenario Analysis for Biodiversity Impact,Scenario planning,"Business activities, future biodiversity trends",Corporate strategists,Multiple,Assesses potential future biodiversity impacts under different scenarios
+SDG 15 Life on Land Indicators,Monitoring,"Policy implementation, ecosystem extent",Governments,Multiple,Official indicators for tracking progress on biodiversity-related SDGs
+SENCE,Impact assessment,"Ecosystem services, land use change",Land use planners,Multiple,Maps ecosystem service provision and biodiversity under different land use scenarios
+South African National Biodiversity Assessment,Status assessment,"Ecosystem threat status, protection level",Conservation planners,Multiple,National framework for assessing biodiversity status and protection
+SPOTT,Benchmarking,"Corporate transparency, policy implementation","Investors, buyers",Multiple,Assesses companies in forest-risk sectors on biodiversity management
+STAR,Impact assessment,"Species threat abatement, restoration potential","Businesses, conservation planners",Multiple,Measures potential contribution to reducing species extinction risk
+Strategic Biodiversity Assessment,Strategic planning,"Species distribution, ecosystem services",Regional planners,Multiple,Identifies biodiversity priorities at regional planning scale
+Sustainable Asset Valuation,Valuation,"Natural capital assets, ecosystem services",Infrastructure developers,Multiple,Values biodiversity and ecosystem services in infrastructure projects
+Sustainable Catchment Management Planning,Planning,"Watershed services, habitat quality",Water utilities,Freshwater,Plans watershed management for biodiversity and water quality benefits
+Sustainable Landscape Rating Tool,Rating,"Landscape governance, conservation measures",Landscape initiatives,Multiple,Assesses governance and conservation effectiveness at landscape scale
+Swedish Species Observation System,Monitoring,"Species occurrence, citizen science","Researchers, conservation managers",Multiple,Collects biodiversity data through citizen science for assessment
+System of Environmental Economic Accounting,Accounting,"Ecosystem extent, condition, services",Governments,Multiple,UN standard for ecosystem accounting including biodiversity
+Task Force on Nature-related Financial Disclosures,Reporting framework,Nature-related risks and opportunities,"Businesses, financial institutions",Multiple,Framework for reporting on nature-related risks including biodiversity
+TCNC,Footprinting,"Biodiversity impact drivers, corporate activities",Businesses,Multiple,Corporate biodiversity footprinting methodology
+Tech4Nature,Monitoring,"Protected area effectiveness, technologically-derived indicators",Protected area managers,Multiple,Uses technology to monitor biodiversity in protected areas
+TESEO,Risk assessment,"Business operations, biodiversity sensitivity",Businesses,Multiple,Assesses business risks related to biodiversity loss
+TESSA,Rapid assessment,"Ecosystem services, site-level assessment",Site managers,Multiple,Rapid assessment of site-level ecosystem services including biodiversity
+The Conservation Framework,Planning,"Conservation targets, threat reduction",Conservation practitioners,Multiple,Framework for planning and measuring conservation outcomes for biodiversity
+The GRI Biodiversity Indicators,Reporting,"Operational impacts, management responses",Businesses,Multiple,Standardized indicators for corporate biodiversity reporting
+The Natural Capital Protocol,Framework,Business dependencies and impacts,Businesses,Multiple,Framework for business assessment of impacts and dependencies on natural capital
+The Sustainalytics Biodiversity Indicators,Rating,Corporate biodiversity management,Investors,Multiple,Rates companies on biodiversity management for ESG analysis
+TRACKS,Monitoring,Protected area effectiveness,Protected area managers,Multiple,Monitors management effectiveness of protected areas for biodiversity
+UN Habitat SDG Tool,Monitoring,Urban biodiversity indicators,City planners,Urban,Tracks biodiversity elements of sustainable development in urban areas
+UNEP-WCMC Biodiversity Indicators,Monitoring,National biodiversity metrics,Governments,Multiple,Suite of indicators for tracking national biodiversity status and trends
+UNEP-WCMC Corporate Biodiversity Data,Data provision,Corporate biodiversity reporting,Businesses,Multiple,Platform for standardized corporate biodiversity data
+United Nations Biodiversity Lab,Data provision,Spatial biodiversity data,Policy makers,Multiple,Provides spatial data for biodiversity assessment and planning
+Urban Biodiversity Hub,Benchmarking,"Urban biodiversity practices, metrics",City governments,Urban,Benchmarks city performance on urban biodiversity management
+Valuing Corporate Environmental Impacts PwC,Valuation,"Environmental impacts, monetary values",Businesses,Multiple,Methodology for monetary valuation of biodiversity impacts
+WBCSD Circular Transition Indicators,Assessment,Circular economy performance,Businesses,Multiple,Measures circularity performance including biodiversity resource efficiency
+WDI,Reporting framework,Corporate workforce disclosure,Investors,Multiple,Corporate disclosure framework including biodiversity management questions
+WILDLABS,Monitoring,Technology applications for conservation,Conservation practitioners,Multiple,Community platform for technology-based biodiversity monitoring solutions
+Wolf Ridge Environmental Learning Center tool,Education,"Ecosystem processes, educational modules",Educators,Multiple,Educational tool for biodiversity assessment and understanding
+WWF SIGHT,Risk assessment,"Spatial biodiversity data, business locations",Businesses,Multiple,Screens business assets against biodiversity and environmental risks
+WWF Water Risk Filter,Risk assessment,"Water-related risks, watershed data",Businesses,Freshwater,Assesses water-related risks including freshwater biodiversity

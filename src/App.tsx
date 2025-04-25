@@ -482,18 +482,9 @@ function App() {
     window.location.reload();
   };
 
-  // Handle search focus/blur events
+  // Handle search focus events
   const handleSearchFocus = () => {
     setSearchFocused(true);
-  };
-
-  const handleSearchBlur = (e: React.FocusEvent) => {
-    // Only blur if clicking outside the search container
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      if (!showSearchResults) {
-        setSearchFocused(false);
-      }
-    }
   };
 
   // Handle key down events for search

@@ -1,3 +1,5 @@
+/// <reference lib="webworker" />
+
 import { processToolsData, FeatureWeights } from '../utils/clusteringUtils';
 
 declare const self: DedicatedWorkerGlobalScope;

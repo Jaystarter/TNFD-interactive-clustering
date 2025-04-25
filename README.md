@@ -4,19 +4,32 @@
 
 The TNFD Tools Relational Map is an interactive visualization tool designed to help users explore and understand the relationships between various tools related to the Taskforce on Nature-related Financial Disclosures (TNFD). This application visualizes connections between tools based on their functional similarities, target users, data sources, and environmental focus, helping stakeholders identify appropriate tools for their specific needs.
 
+The application includes natural language search functionality powered by Google's Gemini 2.0 Flash-Lite model, allowing users to find relevant tools using everyday language.
+
 ## How was the data constructed
 
 ### Data Source and Structure
 
-The data for this application comes from a curated CSV file containing detailed information about TNFD-related tools. Each tool entry includes:
+The data for this application comes from a curated CSV file containing detailed information about TNFD-related tools. Each tool entry must include the following columns:
 
-- **Tool Name**: The unique identifier for each tool
-- **Primary Function**: The main purpose or capability of the tool
-- **Data Sources**: What types of data the tool uses or processes
-- **Target User/Client**: The intended audience for the tool
-- **Environment Type**: The environmental contexts the tool is designed for (e.g., Terrestrial, Marine, Freshwater, Multiple)
-- **Description**: A brief explanation of the tool's functionality
-- **Connections**: Relationships to other tools based on similarity metrics
+#### **Required CSV Columns**
+
+- **Tool Name** *(string, required)*: The unique name of the tool. This will be used as the identifier.
+- **Primary Function** *(string, required)*: The main purpose or capability of the tool. If a tool has multiple functions, separate them with a semicolon (`;`). Example: `Measurement; Assessment`.
+- **Data Sources** *(string, required)*: The types of data the tool uses or processes. Multiple data sources should also be separated by semicolons.
+- **Target User/Client** *(string, required)*: The intended audience for the tool (e.g., Researcher, Corporate, Field Practitioner). Multiple audiences should be separated by semicolons.
+- **Environment Type** *(string, required)*: The environmental contexts the tool is designed for (e.g., Terrestrial, Marine, Freshwater, Multiple). Multiple types should be separated by semicolons.
+- **Description** *(string, required)*: A brief explanation of the tool's functionality.
+- **TNFD Link** *(string, optional)*: A URL or reference link for the tool (if available).
+
+##### **Example CSV Row**
+
+```
+Tool Name,Primary Function,Data Sources,Target User/Client,Environment Type,Description,TNFD Link
+"Nature Metrics","Measurement; Assessment","eDNA; Camera Trap","Researcher; Field Practitioner","Terrestrial; Marine","A tool for biodiversity measurement using eDNA and camera traps.",https://naturemetrics.com
+```
+
+- **Connections**: Relationships to other tools are generated automatically by the application and do not need to be included in the CSV.
 
 The data was compiled through:
 1. **Expert Research**: Analysis of existing biodiversity and environmental assessment tools
@@ -27,7 +40,55 @@ The data was compiled through:
 
 Connections between tools are determined through a multi-dimensional similarity calculation:
 1. **Feature Weighting**: Different attributes (function, data sources, users, environment) are assigned configurable weights
-2. **Similarity Metrics**: 
+2. **Similarity Metrics**: Tools are compared using similarity metrics like Jaccard Index for categorical data
+3. **Threshold Application**: Connections are established when similarity exceeds the configurable threshold
+
+## Features
+
+### Natural Language Search
+
+The TNFD Tools Relational Map includes a powerful natural language search feature powered by Google's Gemini 2.0 Flash-Lite model. This allows users to find relevant tools by describing their needs in everyday language rather than having to know specific keywords or categories.
+
+Examples of natural language searches:
+- "Find tools for measuring biodiversity in marine environments"
+- "Show me tools suitable for corporate sustainability reporting"
+- "What tools can help with field assessments?"
+
+## Setup and Installation
+
+### Frontend
+
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Start the development server:
+   ```
+   npm run dev
+   ```
+
+### Backend API (for Natural Language Search)
+
+1. Navigate to the functions directory:
+   ```
+   cd functions
+   ```
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Create a `.env` file in the functions directory with your Gemini API key:
+   ```
+   GEMINI_API_KEY=your_api_key_here
+   ```
+4. Start the API server:
+   ```
+   node index.js
+   ```
+   The server will run on port 3001 by default.
+
+**Note:** The natural language search functionality requires both the frontend and backend to be running simultaneously.
    - Text-based features use cosine similarity
    - Categorical features use overlap coefficient
 3. **Threshold Filtering**: Connections are only established when similarity scores exceed the user-defined threshold

@@ -45,7 +45,7 @@ export const tools: Tool[] = [
   {
     id: 'nature-metrics',
     name: 'Nature Metrics',
-    category: 'Data',
+    category: 'Supply Chain',
     relevance: 0.8,
     connections: ['supplier-biodiversity']
   },
@@ -73,13 +73,13 @@ export const tools: Tool[] = [
   {
     id: 'kyros',
     name: 'Kyros',
-    category: 'Data',
+    category: 'Supply Chain',
     relevance: 0.85,
     connections: ['ocean-data-platform']
   },
   {
     id: 'ocean-data-platform',
-    name: 'Ocean Data Platform',
+    name: 'Ocean Supply Chain Platform',
     category: 'Marine',
     relevance: 0.9,
     connections: ['carbon-risk-index']
@@ -94,7 +94,7 @@ export const tools: Tool[] = [
   {
     id: 'living-planet',
     name: 'Living Planet Index',
-    category: 'Data',
+    category: 'Supply Chain',
     relevance: 0.95,
     connections: ['wbcsd-biodiversity']
   },

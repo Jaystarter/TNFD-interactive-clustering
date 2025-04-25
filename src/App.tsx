@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import './App.css';
 import { ForceGraphContainer } from './components/ForceGraphContainer';
 import { Tool, tools as defaultTools } from './data/tools';
-import { processToolsData, FeatureWeights } from './utils/clusteringUtils';
+import { FeatureWeights } from './utils/clusteringUtils';
 import Papa from 'papaparse';
 
 // Utility function to load CSV from different possible locations
@@ -36,7 +36,6 @@ import {
   Box,
   Typography,
   Paper,
-  Slider,
   Grid,
   Container,
   InputAdornment,
@@ -46,7 +45,17 @@ import {
   Tooltip,
   Chip,
   Collapse,
-  Button
+  Button,
+  Modal,
+  Card,
+  CardContent,
+  CardActions,
+  Fade,
+  Backdrop,
+  List,
+  ListItemText,
+  ListItemButton,
+  CircularProgress
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -54,7 +63,10 @@ import {
   TuneRounded as TuneIcon,
   InfoOutlined as InfoIcon,
   ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon
+  ExpandLess as ExpandLessIcon,
+  Close as CloseIcon,
+  Category as CategoryIcon,
+  Source as SourceIcon
 } from '@mui/icons-material';
 
 // Import color palette
@@ -115,6 +127,30 @@ const theme = createTheme({
   },
 });
 
+// Web Worker runner for heavy processing
+const runProcessInWorker = (
+  csvContent: string,
+  similarityThreshold: number,
+  featureWeights: FeatureWeights
+): Promise<Tool[]> => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      new URL('./workers/processWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    worker.onmessage = (e: MessageEvent) => {
+      if (e.data.error) reject(e.data.error);
+      else resolve(e.data.tools);
+      worker.terminate();
+    };
+    worker.onerror = (e) => {
+      reject(e.message);
+      worker.terminate();
+    };
+    worker.postMessage({ csvContent, similarityThreshold, featureWeights });
+  });
+};
+
 function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [tools, setTools] = useState<Tool[]>(defaultTools);
@@ -123,15 +159,19 @@ function App() {
   const [csvLoaded, setCsvLoaded] = useState(false);
   const [rawCsvData, setRawCsvData] = useState<string | null>(null);
   const [controlsExpanded, setControlsExpanded] = useState(false);
+  const [isNaturalLanguageSearch, setIsNaturalLanguageSearch] = useState(false);
+  const [naturalLanguageResults, setNaturalLanguageResults] = useState<Tool[]>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
 
   // Static high-level buckets for category filter
   const availableCategories = [
     'Sensors',
-    'Data Integration',
+    'Supply Chain',
     'Analysis',
     'Visualization',
-    'Open Data',
-    'Experimental'
+    'Open Data'
   ];
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
@@ -180,12 +220,33 @@ function App() {
         // Store the raw CSV data for later reuse
         setRawCsvData(csvContent);
 
-        // Process initial data with default weights
-        const processedTools = await processToolsData(
-          csvContent,
-          similarityThreshold,
-          featureWeights
-        );
+        // Memoization: localStorage cache
+        const cacheKey = 'toolsProcessingCache';
+        let processedTools: Tool[] | undefined;
+        const cacheRaw = localStorage.getItem(cacheKey);
+        if (cacheRaw) {
+          try {
+            const cache = JSON.parse(cacheRaw);
+            if (
+              cache.csvContent === csvContent &&
+              cache.similarityThreshold === similarityThreshold &&
+              JSON.stringify(cache.featureWeights) === JSON.stringify(featureWeights)
+            ) {
+              processedTools = cache.tools;
+            }
+          } catch {}
+        }
+        if (!processedTools) {
+          processedTools = await runProcessInWorker(
+            csvContent,
+            similarityThreshold,
+            featureWeights
+          );
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({ csvContent, similarityThreshold, featureWeights, tools: processedTools })
+          );
+        }
 
         // If we have no processed tools, fall back to default
         if (!processedTools || processedTools.length === 0) {
@@ -260,13 +321,34 @@ function App() {
 
       if (!csvLoaded || !rawCsvData) return;
 
-      // Use stored CSV data instead of reloading from file
-      const processedTools = await processToolsData(
-        rawCsvData,
-        similarityThreshold,
-        featureWeights
-      );
-      setTools(processedTools);
+      // Memoization: localStorage cache
+      const cacheKey = 'toolsProcessingCache';
+      let updatedTools: Tool[] | undefined;
+      const cacheRaw = localStorage.getItem(cacheKey);
+      if (cacheRaw) {
+        try {
+          const cache = JSON.parse(cacheRaw);
+          if (
+            cache.csvContent === rawCsvData &&
+            cache.similarityThreshold === similarityThreshold &&
+            JSON.stringify(cache.featureWeights) === JSON.stringify(featureWeights)
+          ) {
+            updatedTools = cache.tools;
+          }
+        } catch {}
+      }
+      if (!updatedTools) {
+        updatedTools = await runProcessInWorker(
+          rawCsvData,
+          similarityThreshold,
+          featureWeights
+        );
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({ csvContent: rawCsvData, similarityThreshold, featureWeights, tools: updatedTools })
+        );
+      }
+      setTools(updatedTools!);
     } catch (error) {
       console.error('Error updating weights:', error);
     } finally {
@@ -277,15 +359,13 @@ function App() {
   // Run weight updates when feature weights change
   useEffect(() => {
     if (csvLoaded && rawCsvData) {
+      // Fixed similarity threshold at 0.6
+      setSimilarityThreshold(0.6); 
       handleWeightsChange();
     }
-  }, [csvLoaded, rawCsvData, featureWeights, similarityThreshold, handleWeightsChange]);
+  }, [csvLoaded, rawCsvData, featureWeights, handleWeightsChange]);
 
-  // Recalculate connections when similarity threshold changes
-  const handleThresholdChange = useCallback((_event: React.SyntheticEvent | Event, newValue: number | number[]) => {
-    setSimilarityThreshold(newValue as number);
-    handleWeightsChange();
-  }, [handleWeightsChange]);
+  // Similarity threshold is now fixed at 0.6
 
   // Handle feature weight changes
   const handleFeatureWeightChange = useCallback((feature: string, newValue: number | number[]) => {
@@ -350,6 +430,8 @@ function App() {
     setSelectedDataSources([]);
     setSelectedUsers([]);
     setSearchTerm('');
+    setIsNaturalLanguageSearch(false);
+    setNaturalLanguageResults([]);
   };
 
   // Handle CSV file upload to replace the dataset
@@ -362,7 +444,7 @@ function App() {
       localStorage.setItem('uploadedToolsCsv', text);
       setRawCsvData(text);
       setCsvLoaded(true);
-      const processed = await processToolsData(text, similarityThreshold, featureWeights);
+      const processed = await runProcessInWorker(text, similarityThreshold, featureWeights);
       setTools(processed);
       // Parse CSV for filter options
       const parsedData = Papa.parse(text, { header: true }).data as any[];
@@ -400,13 +482,95 @@ function App() {
     window.location.reload();
   };
 
+  // Handle search focus/blur events
+  const handleSearchFocus = () => {
+    setSearchFocused(true);
+  };
+
+  const handleSearchBlur = (e: React.FocusEvent) => {
+    // Only blur if clicking outside the search container
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      if (!showSearchResults) {
+        setSearchFocused(false);
+      }
+    }
+  };
+
+  // Handle key down events for search
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchTerm.trim()) {
+        handleNaturalLanguageSearch(searchTerm);
+        setSearchFocused(false); // hide overlay when showing results
+        setShowSearchResults(true);
+      }
+    } else if (e.key === 'Escape') {
+      setSearchFocused(false);
+      setShowSearchResults(false);
+    }
+  };
+
+  // Handle selecting a tool from search results
+  const handleToolSelect = (tool: Tool) => {
+    setSelectedTool(tool);
+    setShowSearchResults(false);
+    setSearchFocused(false);
+  };
+
+  // Close tool details and return to search
+  const handleCloseToolDetails = () => {
+    setSelectedTool(null);
+  };
+
+  // Handle natural language search
+  const handleNaturalLanguageSearch = async (query: string) => {
+    if (!query.trim()) return;
+    
+    setIsLoading(true);
+    setIsNaturalLanguageSearch(true);
+    setShowSearchResults(true);
+    
+    try {
+      const response = await fetch('http://localhost:3001/api/natural-language-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query,
+          tools
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process natural language search');
+      }
+      
+      setNaturalLanguageResults(data.relevantTools);
+    } catch (error) {
+      console.error('Error with natural language search:', error);
+      setIsNaturalLanguageSearch(false);
+      // Fall back to keyword search if API call fails
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   // Filter tools based on all criteria
   const filteredTools = useMemo(() => {
     // Start with all tools
     let filtered = tools;
-
-    // Apply search filter
-    if (searchTerm.trim()) {
+    
+    // If we have natural language search results, prioritize those
+    if (isNaturalLanguageSearch && naturalLanguageResults.length > 0 && searchTerm.trim()) {
+      // We still need to apply other filters to the natural language results
+      filtered = naturalLanguageResults;
+    }
+    // Otherwise apply standard keyword search filter
+    else if (searchTerm.trim()) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       filtered = filtered.filter(tool =>
         tool.name.toLowerCase().includes(lowerSearchTerm) ||
@@ -451,6 +615,7 @@ function App() {
 
             if (normalizedCats.includes('sensors')) {
               matchesCategory = matchesCategory ||
+                // Standard sensors and hardware
                 allText.includes('sensor') ||
                 allText.includes('camera') ||
                 allText.includes('drone') ||
@@ -460,30 +625,38 @@ function App() {
                 allText.includes('edna') ||
                 allText.includes('monitoring') ||
                 allText.includes('acoustic') ||
+                // Data sources from sensors
                 dataSources.includes('satellite imagery') ||
                 dataSources.includes('wildlife cameras') ||
                 dataSources.includes('acoustic sensors') ||
-                primaryFunction.includes('monitoring');
+                primaryFunction.includes('monitoring') ||
+                // Experimental hardware and citizen science (from Emerging Tech)
+                allText.includes('prototype') && allText.includes('hardware') ||
+                allText.includes('citizen science') && allText.includes('data collection') ||
+                allText.includes('vr') && allText.includes('field') ||
+                allText.includes('ar') && allText.includes('field');
             }
 
-            if (normalizedCats.includes('data integration')) {
+            if (normalizedCats.includes('data pipelines')) {
+              // Focus on data connection, transformation, and integration
               matchesCategory = matchesCategory ||
-                primaryFunction.includes('data') ||
+                (primaryFunction.includes('data') && !primaryFunction.includes('data provision')) ||
                 allText.includes('integration') ||
                 allText.includes('pipeline') ||
                 allText.includes('etl') ||
                 allText.includes('excel') ||
                 allText.includes('api') ||
                 allText.includes('collection') ||
-                allText.includes('database') ||
-                allText.includes('repository') ||
                 allText.includes('accounting') ||
                 primaryFunction.includes('footprinting') ||
-                primaryFunction.includes('data provision');
+                // Include private/internal databases but not public repositories
+                (allText.includes('database') && !allText.includes('open') && !toolName.includes('gbif')) ||
+                (allText.includes('repository') && !allText.includes('open access'));
             }
 
             if (normalizedCats.includes('analysis')) {
               matchesCategory = matchesCategory ||
+                // Core analysis functions
                 primaryFunction.includes('analysis') ||
                 primaryFunction.includes('assessment') ||
                 primaryFunction.includes('modeling') ||
@@ -491,38 +664,54 @@ function App() {
                 allText.includes('recognition') ||
                 allText.includes('model') ||
                 allText.includes('statistical') ||
+                // AI and machine learning (previously in Emerging Tech)
                 allText.includes('machine learning') ||
                 allText.includes('ml') ||
                 allText.includes('ai') ||
+                allText.includes('artificial intelligence') ||
+                toolName.includes('ai') ||
+                // Assessment types
                 primaryFunction.includes('risk assessment') ||
                 primaryFunction.includes('impact assessment') ||
                 primaryFunction.includes('status assessment') ||
-                primaryFunction.includes('footprinting');
+                primaryFunction.includes('footprinting') ||
+                // Advanced planning (previously in Emerging Tech)
+                primaryFunction.includes('scenario planning') ||
+                primaryFunction.includes('prioritization');
             }
 
             if (normalizedCats.includes('visualization')) {
+              // Focus on visual presentation of data and reporting frameworks
               matchesCategory = matchesCategory ||
+                // Visual elements
                 allText.includes('visualization') ||
                 allText.includes('dashboard') ||
-                allText.includes('report') ||
-                allText.includes('kpi') ||
                 allText.includes('chart') ||
                 allText.includes('map') ||
                 allText.includes('display') ||
+                // Reporting frameworks and outputs
                 primaryFunction.includes('reporting') ||
+                primaryFunction.includes('reporting framework') ||
+                (primaryFunction.includes('framework') && allText.includes('report')) ||
+                // Benchmarking and comparative tools
                 primaryFunction.includes('benchmarking') ||
                 primaryFunction.includes('rating') ||
-                primaryFunction.includes('valuation');
+                primaryFunction.includes('valuation') ||
+                // KPIs and metrics
+                allText.includes('kpi') ||
+                (allText.includes('report') &&
+                  (allText.includes('generator') ||
+                   allText.includes('template') ||
+                   allText.includes('dashboard')));
             }
 
             if (normalizedCats.includes('open data')) {
+              // Focus specifically on open, public data repositories and research data
               matchesCategory = matchesCategory ||
                 allText.includes('open data') ||
-                allText.includes('database') ||
-                allText.includes('repository') ||
                 allText.includes('gbif') ||
                 allText.includes('obis') ||
-                allText.includes('research') ||
+                (allText.includes('research') && (allText.includes('data') || allText.includes('database'))) ||
                 dataSources.includes('open') ||
                 description.includes('open access') ||
                 toolName.includes('gbif') ||
@@ -530,26 +719,15 @@ function App() {
                 toolName.includes('data repository') ||
                 primaryFunction.includes('data provision') ||
                 primaryFunction.includes('knowledge database') ||
-                primaryFunction.includes('knowledge sharing');
+                primaryFunction.includes('knowledge sharing') ||
+                // Specifically target public/open databases and repositories
+                (allText.includes('database') && (allText.includes('open') || description.includes('public'))) ||
+                (allText.includes('repository') && (allText.includes('open access') || description.includes('public')));
             }
 
-            if (normalizedCats.includes('experimental')) {
-              matchesCategory = matchesCategory ||
-                allText.includes('experimental') ||
-                allText.includes('prototype') ||
-                allText.includes('pilot') ||
-                allText.includes('blockchain') ||
-                allText.includes('vr') ||
-                allText.includes('ar') ||
-                allText.includes('citizen science') ||
-                allText.includes('artificial intelligence') ||
-                allText.includes('machine learning') ||
-                description.includes('emerging') ||
-                description.includes('cutting-edge') ||
-                toolName.includes('ai') ||
-                primaryFunction.includes('scenario planning') ||
-                primaryFunction.includes('prioritization');
-            }
+            // Note: We've removed the 'Emerging Tech' category
+            // Tools that would have been in that category are now distributed to other categories
+            // through their existing matching logic
 
             return matchesCategory;
           });
@@ -605,12 +783,9 @@ function App() {
 
     return filtered;
   }, [tools, searchTerm, selectedCategories, selectedFunctions, selectedEnvironments,
-      selectedDataSources, selectedUsers, rawCsvData]);
+      selectedDataSources, selectedUsers, rawCsvData, isNaturalLanguageSearch, naturalLanguageResults]);
 
-  // Format slider value with 2 decimal places
-  const valuetext = (value: number) => {
-    return value.toFixed(2);
-  };
+  // Removed valuetext function as we no longer use sliders
 
   return (
     <ThemeProvider theme={theme}>
@@ -629,6 +804,22 @@ function App() {
         >
           <Container maxWidth="lg">
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              {/* GitHub link bottom left */}
+              <Box sx={{ position: 'fixed', bottom: 16, left: 16, zIndex: 1000 }}>
+                <a
+                  href="https://github.com/Jaystarter"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: 'black', opacity: 0.7 }}>
+                      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.12 0 0 .67-.21 2.2.82A7.68 7.68 0 0 1 8 4.84c.68.003 1.36.092 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.11.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+                    </svg>
+                    <span style={{ color: 'black', fontSize: 13, opacity: 0.7 }}>GitHub</span>
+                  </Box>
+                </a>
+              </Box>
               <Typography variant="h5" component="h1">
                 TNFD Tools Relational Map
               </Typography>
@@ -638,13 +829,23 @@ function App() {
                   fullWidth
                   placeholder="Search for tools or categories..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setIsNaturalLanguageSearch(false);
+                  }}
+                  onFocus={handleSearchFocus}
                   variant="outlined"
                   size="small"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchIcon sx={{ color: 'rgba(255,255,255,0.8)' }} />
+                        <IconButton 
+                    size="small" 
+                    onClick={() => handleNaturalLanguageSearch(searchTerm)}
+                    sx={{ p: 0 }}
+                  >
+                    <SearchIcon sx={{ color: 'rgba(255,255,255,0.8)' }} />
+                  </IconButton>
                       </InputAdornment>
                     ),
                     endAdornment: searchTerm ? (
@@ -652,7 +853,11 @@ function App() {
                         <IconButton
                           size="small"
                           aria-label="clear search"
-                          onClick={() => setSearchTerm('')}
+                          onClick={() => {
+                    setSearchTerm('');
+                    setIsNaturalLanguageSearch(false);
+                    setNaturalLanguageResults([]);
+                  }}
                           edge="end"
                           sx={{ color: 'rgba(255,255,255,0.8)' }}
                         >
@@ -683,11 +888,13 @@ function App() {
                 />
                 {searchTerm && (
                   <Chip
-                    label={`${filteredTools.length} found`}
+                    label={isNaturalLanguageSearch 
+                      ? `AI: ${filteredTools.length} matches` 
+                      : `${filteredTools.length} found`}
                     size="small"
                     sx={{
                       ml: 1,
-                      bgcolor: 'rgba(255,255,255,0.15)',
+                      bgcolor: isNaturalLanguageSearch ? 'rgba(75,181,67,0.25)' : 'rgba(255,255,255,0.15)',
                       color: 'white'
                     }}
                   />
@@ -952,7 +1159,7 @@ function App() {
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TuneIcon sx={{ mr: 1, color: 'primary.main' }} />
                 <Typography variant="h6" component="h2">
-                  Clustering Controls
+                  What is important to you?
                 </Typography>
                 <IconButton
                   size="small"
@@ -963,28 +1170,6 @@ function App() {
                   {controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                 </IconButton>
               </Box>
-
-              {/* Similarity Threshold in the header */}
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '250px' }}>
-                <Tooltip title="Controls how similar tools must be to form connections" arrow>
-                  <Typography variant="subtitle2" sx={{ mr: 1, whiteSpace: 'nowrap' }}>
-                    Threshold: {similarityThreshold.toFixed(2)}
-                  </Typography>
-                </Tooltip>
-                <Slider
-                  size="small"
-                  value={similarityThreshold}
-                  onChange={handleThresholdChange}
-                  min={0.2}
-                  max={0.9}
-                  step={0.05}
-                  valueLabelDisplay="auto"
-                  getAriaValueText={valuetext}
-                  valueLabelFormat={valuetext}
-                  disabled={isLoading}
-                  color="primary"
-                />
-              </Box>
             </Box>
 
             <Collapse in={controlsExpanded}>
@@ -994,97 +1179,229 @@ function App() {
                 {/* Feature Weight Sliders in compact format */}
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ mb: 0 }}>
-                    <Typography variant="caption" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       Primary Function: {primaryFunctionWeight.toFixed(2)}
                       <Tooltip title="Determines how much the tool's main functionality influences clustering" arrow>
                         <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
                       </Tooltip>
                     </Typography>
-                    <Slider
-                      size="small"
-                      value={primaryFunctionWeight}
-                      onChange={(_e, v) => handleFeatureWeightChange('Primary Function', v)}
-                      min={0.1}
-                      max={0.5}
-                      step={0.05}
-                      valueLabelDisplay="auto"
-                      getAriaValueText={valuetext}
-                      valueLabelFormat={valuetext}
-                      disabled={isLoading}
-                      color="primary"
-                    />
+                    <Box sx={{ display: 'flex', width: '225px', border: `2px solid ${colorPalette.darkGreen}`, borderRadius: '4px' }}>
+                      {[0.1, 0.2, 0.3, 0.4, 0.5].map((value, index) => {
+                        const isActive = primaryFunctionWeight >= value;
+                        return (
+                          <Box 
+                            key={index}
+                            onClick={() => handleFeatureWeightChange('Primary Function', value)}
+                            sx={{
+                              width: '45px',
+                              height: '36px',
+                              borderRight: index < 4 ? `1px solid ${colorPalette.darkGreen}` : 'none',
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              backgroundColor: isActive ? 'rgba(107, 144, 128, 0.1)' : 'transparent',
+                              position: 'relative',
+                              '&:hover': {
+                                backgroundColor: 'rgba(107, 144, 128, 0.2)',
+                              }
+                            }}
+                          >
+                            {isActive && (
+                              <Box sx={{ 
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}>
+                                <Box sx={{ 
+                                  width: '100%', 
+                                  height: '100%',
+                                  backgroundImage: 'linear-gradient(135deg, transparent 0%, transparent 40%, #6B9080 40%, #6B9080 60%, transparent 60%, transparent 100%)',
+                                  backgroundSize: '8px 8px',
+                                  opacity: 0.7
+                                }} />
+                              </Box>
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </Box>
                   </Box>
                 </Grid>
 
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ mb: 0 }}>
-                    <Typography variant="caption" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       Data Sources: {dataSourcesWeight.toFixed(2)}
                       <Tooltip title="Affects how data collection methods impact tool grouping" arrow>
                         <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
                       </Tooltip>
                     </Typography>
-                    <Slider
-                      size="small"
-                      value={dataSourcesWeight}
-                      onChange={(_e, v) => handleFeatureWeightChange('Data Sources', v)}
-                      min={0.1}
-                      max={0.5}
-                      step={0.05}
-                      valueLabelDisplay="auto"
-                      getAriaValueText={valuetext}
-                      valueLabelFormat={valuetext}
-                      disabled={isLoading}
-                      color="primary"
-                    />
+                    <Box sx={{ display: 'flex', width: '225px', border: `2px solid ${colorPalette.darkGreen}`, borderRadius: '4px' }}>
+                      {[0.1, 0.2, 0.3, 0.4, 0.5].map((value, index) => {
+                        const isActive = dataSourcesWeight >= value;
+                        return (
+                          <Box 
+                            key={index}
+                            onClick={() => handleFeatureWeightChange('Data Sources', value)}
+                            sx={{
+                              width: '45px',
+                              height: '36px',
+                              borderRight: index < 4 ? `1px solid ${colorPalette.darkGreen}` : 'none',
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              backgroundColor: isActive ? 'rgba(107, 144, 128, 0.1)' : 'transparent',
+                              position: 'relative',
+                              '&:hover': {
+                                backgroundColor: 'rgba(107, 144, 128, 0.2)',
+                              }
+                            }}
+                          >
+                            {isActive && (
+                              <Box sx={{ 
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}>
+                                <Box sx={{ 
+                                  width: '100%', 
+                                  height: '100%',
+                                  backgroundImage: 'linear-gradient(135deg, transparent 0%, transparent 40%, #6B9080 40%, #6B9080 60%, transparent 60%, transparent 100%)',
+                                  backgroundSize: '8px 8px',
+                                  opacity: 0.7
+                                }} />
+                              </Box>
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </Box>
                   </Box>
                 </Grid>
 
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ mb: 0 }}>
-                    <Typography variant="caption" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       Target User: {targetUserWeight.toFixed(2)}
                       <Tooltip title="Controls how the intended audience affects tool relationships" arrow>
                         <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
                       </Tooltip>
                     </Typography>
-                    <Slider
-                      size="small"
-                      value={targetUserWeight}
-                      onChange={(_e, v) => handleFeatureWeightChange('Target User/Client', v)}
-                      min={0.1}
-                      max={0.5}
-                      step={0.05}
-                      valueLabelDisplay="auto"
-                      getAriaValueText={valuetext}
-                      valueLabelFormat={valuetext}
-                      disabled={isLoading}
-                      color="primary"
-                    />
+                    <Box sx={{ display: 'flex', width: '225px', border: `2px solid ${colorPalette.darkGreen}`, borderRadius: '4px' }}>
+                      {[0.1, 0.2, 0.3, 0.4, 0.5].map((value, index) => {
+                        const isActive = targetUserWeight >= value;
+                        return (
+                          <Box 
+                            key={index}
+                            onClick={() => handleFeatureWeightChange('Target User/Client', value)}
+                            sx={{
+                              width: '45px',
+                              height: '36px',
+                              borderRight: index < 4 ? `1px solid ${colorPalette.darkGreen}` : 'none',
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              backgroundColor: isActive ? 'rgba(107, 144, 128, 0.1)' : 'transparent',
+                              position: 'relative',
+                              '&:hover': {
+                                backgroundColor: 'rgba(107, 144, 128, 0.2)',
+                              }
+                            }}
+                          >
+                            {isActive && (
+                              <Box sx={{ 
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}>
+                                <Box sx={{ 
+                                  width: '100%', 
+                                  height: '100%',
+                                  backgroundImage: 'linear-gradient(135deg, transparent 0%, transparent 40%, #6B9080 40%, #6B9080 60%, transparent 60%, transparent 100%)',
+                                  backgroundSize: '8px 8px',
+                                  opacity: 0.7
+                                }} />
+                              </Box>
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </Box>
                   </Box>
                 </Grid>
 
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ mb: 0 }}>
-                    <Typography variant="caption" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                      Environment: {environmentTypeWeight.toFixed(2)}
-                      <Tooltip title="Influences how operational environment impacts tool clustering" arrow>
+                    <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      Environment Type: {environmentTypeWeight.toFixed(2)}
+                      <Tooltip title="Influences how environmental context affects tool similarity" arrow>
                         <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
                       </Tooltip>
                     </Typography>
-                    <Slider
-                      size="small"
-                      value={environmentTypeWeight}
-                      onChange={(_e, v) => handleFeatureWeightChange('Environment Type', v)}
-                      min={0.1}
-                      max={0.5}
-                      step={0.05}
-                      valueLabelDisplay="auto"
-                      getAriaValueText={valuetext}
-                      valueLabelFormat={valuetext}
-                      disabled={isLoading}
-                      color="primary"
-                    />
+                    <Box sx={{ display: 'flex', width: '225px', border: `2px solid ${colorPalette.darkGreen}`, borderRadius: '4px' }}>
+                      {[0.1, 0.2, 0.3, 0.4, 0.5].map((value, index) => {
+                        const isActive = environmentTypeWeight >= value;
+                        return (
+                          <Box 
+                            key={index}
+                            onClick={() => handleFeatureWeightChange('Environment Type', value)}
+                            sx={{
+                              width: '45px',
+                              height: '36px',
+                              borderRight: index < 4 ? `1px solid ${colorPalette.darkGreen}` : 'none',
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              backgroundColor: isActive ? 'rgba(107, 144, 128, 0.1)' : 'transparent',
+                              position: 'relative',
+                              '&:hover': {
+                                backgroundColor: 'rgba(107, 144, 128, 0.2)',
+                              }
+                            }}
+                          >
+                            {isActive && (
+                              <Box sx={{ 
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}>
+                                <Box sx={{ 
+                                  width: '100%', 
+                                  height: '100%',
+                                  backgroundImage: 'linear-gradient(135deg, transparent 0%, transparent 40%, #6B9080 40%, #6B9080 60%, transparent 60%, transparent 100%)',
+                                  backgroundSize: '8px 8px',
+                                  opacity: 0.7
+                                }} />
+                              </Box>
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </Box>
                   </Box>
                 </Grid>
               </Grid>
@@ -1113,6 +1430,231 @@ function App() {
               controlsExpanded={controlsExpanded}
               toolsData={filteredTools}
             />
+
+            {/* Search Overlay TextField */}
+            <Fade in={searchFocused && !showSearchResults}>
+              <Box
+                sx={{
+                  position: 'fixed',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '80%',
+                  maxWidth: '800px',
+                  zIndex: 1400,
+                }}
+              >
+                <TextField
+                  fullWidth
+                  placeholder="Describe what you're looking for..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setIsNaturalLanguageSearch(false);
+                  }}
+                  onKeyDown={handleSearchKeyDown}
+                  autoFocus
+                  variant="outlined"
+                  size="medium"
+                />
+              </Box>
+            </Fade>
+
+            {/* Backdrop remains */}
+            <Backdrop
+              sx={{
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                backdropFilter: 'blur(6px)',
+                zIndex: 1100,
+                transition: 'all 0.3s ease-in-out',
+              }}
+              open={searchFocused || showSearchResults}
+              onClick={() => {
+                if (!showSearchResults) {
+                  setSearchFocused(false);
+                }
+              }}
+            />
+            
+            {/* Search Results Modal */}
+            <Fade in={showSearchResults}>
+              <Box
+                sx={{
+                  position: 'fixed',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '80%',
+                  maxWidth: '800px',
+                  bgcolor: 'background.paper',
+                  borderRadius: 2,
+                  boxShadow: 24,
+                  p: 2,
+                  zIndex: 1300,
+                  overflow: 'auto',
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6">
+                    {isNaturalLanguageSearch ? 'AI Search Results' : 'Search Results'}
+                  </Typography>
+                  <IconButton onClick={() => setShowSearchResults(false)}>
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+                
+                {isLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : filteredTools.length > 0 ? (
+                  <List>
+                    {filteredTools.map((tool) => (
+                      <ListItemButton 
+                        key={tool.id}
+                        onClick={() => handleToolSelect(tool)}
+                        sx={{
+                          mb: 1,
+                          borderRadius: 1,
+                          '&:hover': {
+                            bgcolor: 'rgba(46, 125, 50, 0.08)',
+                          },
+                        }}
+                      >
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{tool.name}</Typography>
+                              <Chip 
+                                size="small" 
+                                label={tool.category} 
+                                sx={{ 
+                                  bgcolor: colorPalette.mediumGreen,
+                                  color: 'white',
+                                  fontWeight: 500,
+                                  fontSize: '0.75rem',
+                                }}
+                              />
+                            </Box>
+                          }
+                          secondary={
+                            <Box sx={{ mt: 1 }}>
+                              {tool.primaryFunction && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', mb: 0.5 }}>
+                                  <CategoryIcon sx={{ fontSize: '0.875rem', mr: 0.5, opacity: 0.7 }} />
+                                  <span>{tool.primaryFunction}</span>
+                                </Box>
+                              )}
+                              {tool.dataSources && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', mb: 0.5 }}>
+                                  <SourceIcon sx={{ fontSize: '0.875rem', mr: 0.5, opacity: 0.7 }} />
+                                  <span>{tool.dataSources}</span>
+                                </Box>
+                              )}
+                            </Box>
+                          }
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                ) : (
+                  <Box sx={{ p: 4, textAlign: 'center' }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No tools match your search criteria
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Fade>
+            
+            {/* Tool Details Modal */}
+            <Modal
+              open={selectedTool !== null}
+              onClose={handleCloseToolDetails}
+              aria-labelledby="tool-details-title"
+            >
+              <Fade in={selectedTool !== null}>
+                <Box
+                  sx={{
+                    position: 'fixed',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '80%',
+                    maxWidth: '800px',
+                    bgcolor: 'background.paper',
+                    borderRadius: 2,
+                    boxShadow: 24,
+                    p: 0,
+                    maxHeight: '80vh',
+                    overflow: 'auto',
+                  }}
+                >
+                  {selectedTool && (
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <Typography variant="h5" component="h2">
+                            {selectedTool.name}
+                          </Typography>
+                          <Chip 
+                            label={selectedTool.category} 
+                            sx={{ 
+                              bgcolor: colorPalette.mediumGreen,
+                              color: 'white',
+                              fontWeight: 500,
+                            }}
+                          />
+                        </Box>
+                        
+                        <Divider sx={{ my: 2 }} />
+                        
+                        {selectedTool.primaryFunction && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                              Primary Function
+                            </Typography>
+                            <Typography variant="body1">{selectedTool.primaryFunction}</Typography>
+                          </Box>
+                        )}
+                        
+                        {selectedTool.dataSources && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                              Data Sources
+                            </Typography>
+                            <Typography variant="body1">{selectedTool.dataSources}</Typography>
+                          </Box>
+                        )}
+                        
+                        {selectedTool.targetUser && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                              Target Users
+                            </Typography>
+                            <Typography variant="body1">{selectedTool.targetUser}</Typography>
+                          </Box>
+                        )}
+                        
+                        {selectedTool.environmentType && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                              Environment Type
+                            </Typography>
+                            <Typography variant="body1">{selectedTool.environmentType}</Typography>
+                          </Box>
+                        )}
+                      </CardContent>
+                      <CardActions>
+                        <Button onClick={handleCloseToolDetails}>
+                          Close
+                        </Button>
+                      </CardActions>
+                    </Card>
+                  )}
+                </Box>
+              </Fade>
+            </Modal>
           </div>
         )}
       </div>

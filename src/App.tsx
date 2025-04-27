@@ -1154,8 +1154,8 @@ function App() {
                 </Box>
               )}
             </Paper>
-            </Paper>
           </Collapse>
+          </Collapse> {/* Added missing closing tag for the filter panel visibility collapse */}
           
           {/* Controls section */}
           <Collapse in={controlsExpanded}>

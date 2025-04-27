@@ -188,8 +188,9 @@ function App() {
   const [availableUsers, setAvailableUsers] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
-  // Filter panel state
+  // Panel states
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [filterPanelVisible, setFilterPanelVisible] = useState(false);
 
   // Feature weights
   const [primaryFunctionWeight, setPrimaryFunctionWeight] = useState(0.3);
@@ -785,7 +786,9 @@ function App() {
           elevation={0}
           square
           sx={{
-            p: 2,
+            py: 1,
+            px: 2,
+            minHeight: '48px',
             background: `linear-gradient(to right, ${colorPalette.darkGreen}, ${colorPalette.mediumGreen})`,
             color: 'white',
             borderBottom: '1px solid rgba(0,0,0,0.1)',
@@ -811,11 +814,11 @@ function App() {
                   </Box>
                 </a>
               </Box>
-              <Typography variant="h5" component="h1">
+              <Typography variant="h6" component="h1" sx={{ fontSize: '1rem' }}>
                 TNFD Tools Relational Map
               </Typography>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '40%' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, maxWidth: 300, ml: 2 }}>
                 <TextField
                   fullWidth
                   placeholder="Search for tools or categories..."
@@ -915,22 +918,44 @@ function App() {
           zIndex: 2,
           bgcolor: '#f5f5f5'
         }}>
-          {/* Filter panel toggle */}
-          <Paper
-            elevation={2}
-            sx={{
-              mb: 2,
-              borderRadius: 2,
-              p: 1.5,
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 1,
-              position: 'relative',
-              zIndex: 2
-            }}
-          >
+          {/* Main controls area */}
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mb: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => setFilterPanelVisible(!filterPanelVisible)}
+              startIcon={filterPanelVisible ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            >
+              {filterPanelVisible ? 'Hide Filters' : 'Show Filters'}
+            </Button>
+            
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => setControlsExpanded(!controlsExpanded)}
+              startIcon={controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            >
+              {controlsExpanded ? 'Hide Controls' : 'Show Controls'}
+            </Button>
+          </Box>
+          
+          {/* Filters section */}
+          <Collapse in={filterPanelVisible}>
+            <Paper
+              elevation={2}
+              sx={{
+                mb: 2,
+                borderRadius: 2,
+                p: 1.5,
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                position: 'relative',
+                zIndex: 2
+              }}
+            >
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Typography variant="body1" sx={{ fontWeight: 500 }}>
                 Filters
@@ -1129,18 +1154,22 @@ function App() {
                 </Box>
               )}
             </Paper>
+            </Paper>
           </Collapse>
-
-          <Paper
-            className="controlsPaper"
-            elevation={3}
-            sx={{
-              p: 2,
-              mb: 2,
-              position: 'relative',
-              zIndex: 1
-            }}
-          >
+          
+          {/* Controls section */}
+          <Collapse in={controlsExpanded}>
+            <Paper
+              className="controlsPaper"
+              elevation={2}
+              sx={{
+                mb: 2,
+                borderRadius: 2,
+                p: 1.5,
+                position: 'relative',
+                zIndex: 2
+              }}
+            >
             <Box sx={{
               mb: controlsExpanded ? 1 : 0,
               display: 'flex',
@@ -1397,7 +1426,8 @@ function App() {
                 </Grid>
               </Grid>
             </Collapse>
-          </Paper>
+            </Paper>
+          </Collapse>
         </Container>
 
         {isLoading ? (

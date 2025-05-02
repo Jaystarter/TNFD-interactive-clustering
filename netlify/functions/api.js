@@ -8,7 +8,8 @@ const app = express();
 
 // Middleware
 app.use(cors()); // Enable CORS for all origins - adjust as needed for production
-app.use(express.json());
+// Increase JSON body limit to handle large tools arrays sent from the frontend
+app.use(express.json({ limit: '2mb' }));
 
 // Middleware for request logging and prefix stripping removed for production
 

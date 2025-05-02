@@ -11,23 +11,7 @@ const app = express();
 app.use(cors()); // Enable CORS for all origins - adjust as needed for production
 app.use(express.json());
 
-// Add request logging middleware
-app.use((req, res, next) => {
-  console.log(`--> Request Log: ${req.method} ${req.path} (Original URL: ${req.originalUrl})`);
-  // Log headers if needed for deeper debugging:
-  // console.log('--> Headers:', JSON.stringify(req.headers, null, 2));
-  next();
-});
-
-// Strip /api prefix introduced by Netlify redirects so route definitions match
-app.use((req, res, next) => {
-  if (req.url.startsWith('/api/')) {
-    const originalUrl = req.url;
-    req.url = req.url.replace(/^\/api/, '');
-    console.log(`--> Stripped prefix: ${originalUrl} -> ${req.url}`);
-  }
-  next();
-});
+// Middleware for request logging and prefix stripping removed for production
 
 // Check for API Key on server startup (within the function environment)
 if (!process.env.GEMINI_API_KEY) {
@@ -57,7 +41,6 @@ try {
 
 // Add a simple root route for testing reachability
 app.get('/', (req, res) => {
-  console.log("GET /api/ received");
   res.status(200).json({ message: 'Netlify function api endpoint reached successfully.' });
 });
 
@@ -105,11 +88,9 @@ Return ONLY the names of the top 5 most relevant tools that match the query as a
 If fewer than 5 tools are relevant, return only those that are relevant. Ensure the output is a valid JSON array of strings.`;
 
     // Generate content with Gemini
-    console.log("Sending prompt to Gemini...");
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const responseText = await response.text();
-    console.log("Received response from Gemini.");
 
     // Parse the response text to extract the JSON array
     let relevantToolNames = [];
@@ -124,12 +105,17 @@ If fewer than 5 tools are relevant, return only those that are relevant. Ensure 
       }
 
       if (jsonString) {
-          console.log("Parsing JSON string:", jsonString);
           relevantToolNames = JSON.parse(jsonString);
       } else {
            // Fallback: attempt to parse the whole text if no clear JSON found
-           console.log("No clear JSON block found, attempting to parse entire response.");
-           relevantToolNames = JSON.parse(responseText);
+           // Try parsing the whole string, hoping it's just the array
+           try {
+             relevantToolNames = JSON.parse(responseText);
+           } catch (parseError) {
+             console.error('Error parsing Gemini response:', parseError);
+             console.error('Original Gemini Response Text:', responseText); // Log the raw response on parse failure
+             return res.status(500).json({ error: 'Failed to parse AI response', details: parseError.message, rawResponse: responseText });
+           }
       }
 
       if (!Array.isArray(relevantToolNames)) {
@@ -137,18 +123,11 @@ If fewer than 5 tools are relevant, return only those that are relevant. Ensure 
       }
       // Ensure elements are strings
       relevantToolNames = relevantToolNames.map(name => String(name));
-      console.log("Successfully parsed tool names:", relevantToolNames);
 
-    } catch (error) {
-      console.error("Error parsing Gemini response:", error);
-      console.log("Raw response text:", responseText);
-      // Attempt fallback parsing if JSON fails
-      relevantToolNames = responseText
-        .replace(/[\[\]"\'\`]/g, '') // Remove brackets, quotes
-        .split(',') // Split by comma
-        .map(item => item.trim())
-        .filter(item => item && item.length > 0 && !item.toLowerCase().includes('tool name')); // Basic filtering
-       console.log("Fallback parsed tool names:", relevantToolNames);
+    } catch (parseError) {
+      console.error('Error parsing Gemini response:', parseError);
+      console.error('Original Gemini Response Text:', responseText); // Log the raw response on parse failure
+      return res.status(500).json({ error: 'Failed to parse AI response', details: parseError.message, rawResponse: responseText });
     }
 
     // Filter the original tools data based on the extracted names
@@ -158,7 +137,6 @@ If fewer than 5 tools are relevant, return only those that are relevant. Ensure 
         name.toLowerCase().includes(tool.name.toLowerCase())
       )
     );
-    console.log(`Found ${relevantToolsData.length} matching tools.`);
 
     res.json({ relevantTools: relevantToolsData });
 

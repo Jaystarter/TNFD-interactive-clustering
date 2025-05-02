@@ -134,19 +134,27 @@ const processViaFunction = async (
   similarityThreshold: number,
   featureWeights: FeatureWeights
 ): Promise<Tool[]> => {
+  console.log("PROCESS VIA FUNCTION: Entered function.");
   try {
+    console.log("PROCESS VIA FUNCTION: Making fetch POST request...");
     const response = await fetch('/.netlify/functions/process-tools', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ csvContent, similarityThreshold, featureWeights })
     });
+    console.log("PROCESS VIA FUNCTION: Fetch response status:", response.status);
+
     if (!response.ok) {
-      throw new Error(`Function error: ${await response.text()}`);
+      const errorText = await response.text().catch(() => 'Could not read error response body');
+      console.error("PROCESS VIA FUNCTION: Fetch failed!", response.status, errorText);
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
+
     const data = await response.json();
+    console.log("PROCESS VIA FUNCTION: Fetch successful, returning tools.");
     return data.tools as Tool[];
   } catch (e) {
-    console.warn('Remote processing failed and fallback disabled.', e);
+    console.error('PROCESS VIA FUNCTION: Error during fetch/processing:', e);
     throw e; // don't fallback to worker
   }
 };
@@ -206,105 +214,79 @@ function App() {
   // Load CSV data only once on initial render
   useEffect(() => {
     const initialDataLoad = async () => {
+      console.log("INITIAL LOAD: Starting...");
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-
         // Attempt to load CSV (or use uploaded version)
         const savedCsv = localStorage.getItem('uploadedToolsCsv');
         const csvContent = savedCsv !== null
           ? savedCsv
           : await loadCSVFromPossibleLocations();
-        setCsvLoaded(true);
-        // Store the raw CSV data for later reuse
-        setRawCsvData(csvContent);
+        console.log("INITIAL LOAD: Successfully fetched default CSV.");
+        setRawCsvData(csvContent); // Store raw CSV data
 
-        // Memoization: localStorage cache
-        const cacheKey = 'toolsProcessingCache';
-        let processedTools: Tool[] | undefined;
-        const cacheRaw = localStorage.getItem(cacheKey);
-        if (cacheRaw) {
+        // Process the data using the backend function
+        console.log("INITIAL LOAD: Attempting to call processViaFunction...");
+        const processedTools = await processViaFunction(
+          csvContent,
+          similarityThreshold,
+          featureWeights
+        );
+        console.log("INITIAL LOAD: processViaFunction returned successfully.");
+        setTools(processedTools); // Set the tools state with processed data
+        setCsvLoaded(true); // Mark CSV as loaded
+
+        // Extract other filter options from the raw CSV data
+        if (rawCsvData) {
           try {
-            const cache = JSON.parse(cacheRaw);
-            if (
-              cache.csvContent === csvContent &&
-              cache.similarityThreshold === similarityThreshold &&
-              JSON.stringify(cache.featureWeights) === JSON.stringify(featureWeights)
-            ) {
-              processedTools = cache.tools;
-            }
-          } catch {}
-        }
-        if (!processedTools) {
-          processedTools = await processViaFunction(
-            csvContent,
-            similarityThreshold,
-            featureWeights
-          );
-          localStorage.setItem(
-            cacheKey,
-            JSON.stringify({ csvContent, similarityThreshold, featureWeights, tools: processedTools })
-          );
-        }
+            const parsedData = Papa.parse(rawCsvData, { header: true }).data as any[];
 
-        // If we have no processed tools, fall back to default
-        if (!processedTools || processedTools.length === 0) {
-          console.warn('No tools were processed from CSV, using default tools');
-          setTools(defaultTools);
-        } else {
-          setTools(processedTools);
-          setSelectedCategories([]); // Reset selected categories
+            // Extract unique values for each filter type
+            const functions = Array.from(new Set(parsedData
+              .map(row => row['Primary Function'])
+              .filter(Boolean)
+              .flatMap(val => val.split(';').map((v: string) => v.trim()))
+            ));
 
-          // Extract other filter options from the raw CSV data
-          if (rawCsvData) {
-            try {
-              const parsedData = Papa.parse(rawCsvData, { header: true }).data as any[];
+            const environments = Array.from(new Set(parsedData
+              .map(row => row['Environment Type'])
+              .filter(Boolean)
+              .flatMap(val => val.split(';').map((v: string) => v.trim()))
+            ));
 
-              // Extract unique values for each filter type
-              const functions = Array.from(new Set(parsedData
-                .map(row => row['Primary Function'])
-                .filter(Boolean)
-                .flatMap(val => val.split(';').map((v: string) => v.trim()))
-              ));
+            const dataSources = Array.from(new Set(parsedData
+              .map(row => row['Data Sources'])
+              .filter(Boolean)
+              .flatMap(val => val.split(';').map((v: string) => v.trim()))
+            ));
 
-              const environments = Array.from(new Set(parsedData
-                .map(row => row['Environment Type'])
-                .filter(Boolean)
-                .flatMap(val => val.split(';').map((v: string) => v.trim()))
-              ));
+            const users = Array.from(new Set(parsedData
+              .map(row => row['Target User/Client'])
+              .filter(Boolean)
+              .flatMap(val => val.split(';').map((v: string) => v.trim()))
+            ));
 
-              const dataSources = Array.from(new Set(parsedData
-                .map(row => row['Data Sources'])
-                .filter(Boolean)
-                .flatMap(val => val.split(';').map((v: string) => v.trim()))
-              ));
+            // Set the available filter options
+            setAvailableFunctions(functions);
+            setAvailableEnvironments(environments);
+            setAvailableDataSources(dataSources);
+            setAvailableUsers(users);
 
-              const users = Array.from(new Set(parsedData
-                .map(row => row['Target User/Client'])
-                .filter(Boolean)
-                .flatMap(val => val.split(';').map((v: string) => v.trim()))
-              ));
-
-              // Set the available filter options
-              setAvailableFunctions(functions);
-              setAvailableEnvironments(environments);
-              setAvailableDataSources(dataSources);
-              setAvailableUsers(users);
-
-              // Reset selected filters
-              setSelectedFunctions([]);
-              setSelectedEnvironments([]);
-              setSelectedDataSources([]);
-              setSelectedUsers([]);
-            } catch (error) {
-              console.error('Error parsing filter options:', error);
-            }
+            // Reset selected filters
+            setSelectedFunctions([]);
+            setSelectedEnvironments([]);
+            setSelectedDataSources([]);
+            setSelectedUsers([]);
+          } catch (error) {
+            console.error('Error parsing filter options:', error);
           }
         }
       } catch (error) {
-        console.error('Error loading CSV data:', error);
-        // Fall back to default tools if there's an error
+        console.error('INITIAL LOAD: Error during initial data load or processing:', error);
+        console.log("INITIAL LOAD: Falling back to defaultTools due to error.");
         setTools(defaultTools);
       } finally {
+        console.log("INITIAL LOAD: Finished.");
         setIsLoading(false);
       }
     };

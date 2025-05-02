@@ -491,7 +491,7 @@ function App() {
     
     try {
       // Update the fetch URL to the Netlify function endpoint (relative path)
-      const response = await fetch('/api/natural-language-search', {
+      const response = await fetch('/.netlify/functions/api/natural-language-search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

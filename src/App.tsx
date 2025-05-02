@@ -146,8 +146,8 @@ const processViaFunction = async (
     const data = await response.json();
     return data.tools as Tool[];
   } catch (e) {
-    console.warn('Remote processing failed, falling back to worker.', e);
-    return runProcessInWorker(csvContent, similarityThreshold, featureWeights);
+    console.warn('Remote processing failed and fallback disabled.', e);
+    throw e; // don't fallback to worker
   }
 };
 

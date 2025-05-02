@@ -1,6 +1,6 @@
 # Task ID: 15
 # Title: Offload CSV Processing to Netlify Serverless Function
-# Status: in-progress
+# Status: done
 # Dependencies: 14
 # Priority: high
 # Description: Move heavy CSV parsing, similarity calculation, and force-layout processing from the client to a Netlify serverless function to improve client-side performance.

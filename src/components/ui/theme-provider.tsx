@@ -1,8 +1,7 @@
 "use client"
 
 // Removed unused React hooks import
-import { ThemeProvider as NextThemesProvider } from "next-themes"
-import { type ThemeProviderProps } from "next-themes/dist/types"
+import { ThemeProvider as NextThemesProvider, type ThemeProviderProps } from "next-themes"
 
 // Removed conflicting local type definition
 // type ThemeProviderProps = {

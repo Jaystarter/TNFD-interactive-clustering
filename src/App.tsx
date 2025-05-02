@@ -151,29 +151,7 @@ const processViaFunction = async (
   }
 };
 
-// Web Worker runner for heavy processing
-const runProcessInWorker = (
-  csvContent: string,
-  similarityThreshold: number,
-  featureWeights: FeatureWeights
-): Promise<Tool[]> => {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      new URL('./workers/processWorker.ts', import.meta.url),
-      { type: 'module' }
-    );
-    worker.onmessage = (e: MessageEvent) => {
-      if (e.data.error) reject(e.data.error);
-      else resolve(e.data.tools);
-      worker.terminate();
-    };
-    worker.onerror = (e) => {
-      reject(e.message);
-      worker.terminate();
-    };
-    worker.postMessage({ csvContent, similarityThreshold, featureWeights });
-  });
-};
+// runProcessInWorker has been removed temporarily to enforce backend usage
 
 function App() {
   const [searchTerm, setSearchTerm] = useState('');

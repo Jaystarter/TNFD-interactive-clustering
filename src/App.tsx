@@ -506,7 +506,12 @@ function App() {
 
   // Handle natural language search
   const handleNaturalLanguageSearch = async (query: string) => {
-    if (!query.trim()) return;
+    // Add check: Ensure query is not empty AND tools are loaded
+    if (!query.trim() || !tools || tools.length === 0) {
+      console.warn('AI Search blocked: Query is empty or tools not yet loaded.');
+      // Optionally provide user feedback here (e.g., a toast notification)
+      return;
+    }
     
     setIsLoading(true);
     setIsNaturalLanguageSearch(true);

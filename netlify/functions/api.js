@@ -11,6 +11,24 @@ const app = express();
 app.use(cors()); // Enable CORS for all origins - adjust as needed for production
 app.use(express.json());
 
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`--> Request Log: ${req.method} ${req.path} (Original URL: ${req.originalUrl})`);
+  // Log headers if needed for deeper debugging:
+  // console.log('--> Headers:', JSON.stringify(req.headers, null, 2));
+  next();
+});
+
+// Strip /api prefix introduced by Netlify redirects so route definitions match
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api/')) {
+    const originalUrl = req.url;
+    req.url = req.url.replace(/^\/api/, '');
+    console.log(`--> Stripped prefix: ${originalUrl} -> ${req.url}`);
+  }
+  next();
+});
+
 // Check for API Key on server startup (within the function environment)
 if (!process.env.GEMINI_API_KEY) {
   console.error("FATAL ERROR: GEMINI_API_KEY is not defined in environment variables.");
@@ -37,12 +55,15 @@ try {
     model = null;
 }
 
-// API Router - handles requests under /api/
-const router = express.Router();
+// Add a simple root route for testing reachability
+app.get('/', (req, res) => {
+  console.log("GET /api/ received");
+  res.status(200).json({ message: 'Netlify function api endpoint reached successfully.' });
+});
 
 // Route for natural language search
 // Path is relative to the '/api/' prefix handled by Netlify redirects
-router.post('/natural-language-search', async (req, res) => {
+app.post('/natural-language-search', async (req, res) => {
   // Check if model initialized correctly
   if (!model) {
     console.error("Search attempt failed: Gemini model not available.");
@@ -143,15 +164,17 @@ If fewer than 5 tools are relevant, return only those that are relevant. Ensure 
 
   } catch (error) {
     // Log the specific error encountered during the request processing
-    console.error('Error processing /natural-language-search request:', error);
-    res.status(500).json({ error: 'Failed to process natural language search' });
+    console.error('!!! Error processing /natural-language-search request:', error);
+    // Ensure a valid JSON response is sent even on error
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    res.status(500).json({ 
+      error: 'Failed to process natural language search.', 
+      details: errorMessage 
+      // Avoid sending the full error object directly in the response 
+      // as it might contain sensitive info or not be serializable.
+    });
   }
 });
-
-// Mount the router under the path Netlify expects for functions
-// Netlify automatically maps /api/* requests to this function file based on netlify.toml
-// So the app base path here should reflect the function filename
-app.use('/.netlify/functions/api', router); 
 
 // Export the serverless handler
 module.exports.handler = serverless(app);

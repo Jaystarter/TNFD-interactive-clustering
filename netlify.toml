@@ -10,5 +10,5 @@
 [[redirects]]
   # Route requests from /api/* to the corresponding function
   from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200 # Rewrite status

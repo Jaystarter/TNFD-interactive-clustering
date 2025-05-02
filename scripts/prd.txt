@@ -1,0 +1,79 @@
+# TNFD Tools Interactive Clustering and Relational Map
+
+## Project Overview
+The TNFD (Taskforce on Nature-related Financial Disclosures) Tools Relational Map is an interactive visualization application that helps users discover, explore, and understand relationships between various TNFD tools, frameworks, and methodologies. This application visually maps connections between tools based on their features, use cases, and compatibility, enabling users to find relevant tools for their sustainability and nature-related financial disclosure needs.
+
+## Current Features
+- Interactive graph visualization of TNFD tools and their relationships
+- Material UI components for a modern, professional interface
+- Feature weight controls using sliders with tooltips
+- Responsive layout using Grid system
+- Search functionality with both keyword and natural language capabilities
+- Natural language search powered by Google's Gemini 2.0 Flash-Lite model
+- Custom green theme for TNFD branding
+- Node and link styling with animations and transitions
+
+## Requirements for Enhancement
+
+### 1. Clustering Visualization Enhancements
+- Implement automated clustering algorithms to group similar tools
+- Add ability to visualize clusters with different colors or boundaries
+- Create controls to adjust clustering parameters (distance, similarity thresholds)
+- Provide explanations of why tools are clustered together
+- Allow manual adjustment of clusters with drag-and-drop functionality
+
+### 2. Relationship Strength Visualization
+- Enhance the visualization of relationships between tools to indicate strength/relevance
+- Implement variable line thickness or color to represent relationship strength
+- Add numerical indicators of relationship strength
+- Allow filtering connections by minimum relationship strength
+
+### 3. Tool Details Panel
+- Create an expandable side panel to display comprehensive tool details
+- Include tool descriptions, links to documentation, use cases, and compatibility info
+- Add visual indicators for tool categories and certification status
+- Enable comparison between multiple selected tools
+
+### 4. User Preferences and History
+- Implement user preference saving (local storage)
+- Create a view history feature to track recently viewed tools
+- Add the ability to bookmark favorite tools or clusters
+- Enable saving and sharing of specific graph configurations
+
+### 5. Export and Reporting
+- Add functionality to export the visualization as an image
+- Create report generation for selected tools and relationships
+- Enable exporting of tool data in various formats (CSV, JSON)
+- Add print-friendly view for documentation purposes
+
+### 6. Advanced Filtering and Sorting
+- Enhance filtering capabilities with multi-criteria selection
+- Add sorting options for tools by various metrics
+- Implement category-based filtering with visual indicators
+- Create saved filter sets for quick access
+
+### 7. Performance Optimization
+- Optimize graph rendering for larger datasets
+- Implement progressive loading for faster initial display
+- Add caching mechanisms for frequently accessed data
+- Improve search response time with indexing
+
+### 8. Documentation and Help
+- Create an integrated help system with tooltips and guides
+- Add a tutorial for first-time users
+- Implement contextual help based on current user actions
+- Create comprehensive documentation accessible within the app
+
+## Technical Constraints
+- The application should maintain compatibility with modern browsers
+- User interface should be responsive and accessible
+- API calls should be optimized to minimize latency
+- Local storage should be used for user preferences and history
+- Performance should be maintained even with large datasets
+
+## Success Criteria
+- Users can effectively discover relationships between tools that weren't previously apparent
+- The clustering visualization provides meaningful insights about tool groupings
+- Users can easily filter and find tools relevant to their specific needs
+- The application is intuitive enough that new users can navigate without extensive training
+- Exported visualizations and reports are professional quality and ready for presentations

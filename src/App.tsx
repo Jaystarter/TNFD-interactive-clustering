@@ -1,35 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import './App.css';
 import { ForceGraphContainer } from './components/ForceGraphContainer';
 import { Tool, tools as defaultTools } from './data/tools';
 import { FeatureWeights } from './utils/clusteringUtils';
 import Papa from 'papaparse';
-
-// Utility function to load CSV from different possible locations
-const loadCSVFromPossibleLocations = async (): Promise<string> => {
-  const possiblePaths = [
-    '/TNFD Tools Prototype Data.csv',
-    '/TNFD_Tools_Prototype_Data.csv',
-    './TNFD Tools Prototype Data.csv',
-    '../TNFD Tools Prototype Data.csv'
-  ];
-
-  for (const path of possiblePaths) {
-    try {
-      const response = await fetch(path);
-      if (response.ok) {
-        const content = await response.text();
-        console.log(`Successfully loaded CSV from ${path}`);
-        return content;
-      }
-    } catch (err) {
-      console.warn(`Failed to load from ${path}`);
-    }
-  }
-
-  throw new Error('Could not load CSV file from any location');
-};
-
+import type { FormEvent } from 'react';
+import ClickAwayListener from '@mui/material/ClickAwayListener';
+import Slide from '@mui/material/Slide';
 import {
   ThemeProvider,
   createTheme,
@@ -38,36 +15,37 @@ import {
   Paper,
   Grid,
   Container,
-  InputAdornment,
-  TextField,
   IconButton,
-  Divider,
   Tooltip,
   Chip,
-  Collapse,
   Button,
-  Modal,
-  Card,
-  CardContent,
-  CardActions,
   Fade,
   Backdrop,
   List,
   ListItemText,
   ListItemButton,
-  CircularProgress
+  CircularProgress,
+  Tabs,
+  Tab,
+  Slider,
+  Collapse,
+  AppBar,
+  Toolbar,
+  InputBase,
+  TextField,
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  Clear as ClearIcon,
-  TuneRounded as TuneIcon,
   InfoOutlined as InfoIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
   Close as CloseIcon,
   Category as CategoryIcon,
   Source as SourceIcon
 } from '@mui/icons-material';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import GitHubIcon from '@mui/icons-material/GitHub';
 
 // Import color palette
 import { colorPalette } from './data/tools';
@@ -127,6 +105,29 @@ const theme = createTheme({
   },
 });
 
+// Utility function to load CSV from different possible locations
+const loadCSVFromPossibleLocations = async (): Promise<string> => {
+  const possiblePaths = [
+    '/TNFD Tools Prototype Data.csv',
+    '/TNFD_Tools_Prototype_Data.csv',
+    './TNFD Tools Prototype Data.csv',
+    '../TNFD Tools Prototype Data.csv'
+  ];
+  for (const path of possiblePaths) {
+    try {
+      const response = await fetch(path);
+      if (response.ok) {
+        const content = await response.text();
+        console.log(`Successfully loaded CSV from ${path}`);
+        return content;
+      }
+    } catch (err) {
+      console.warn(`Failed to load from ${path}`);
+    }
+  }
+  throw new Error('Could not load CSV file from any location');
+};
+
 // Web Worker runner for heavy processing
 const runProcessInWorker = (
   csvContent: string,
@@ -158,12 +159,11 @@ function App() {
   const [similarityThreshold, setSimilarityThreshold] = useState(0.6);
   const [csvLoaded, setCsvLoaded] = useState(false);
   const [rawCsvData, setRawCsvData] = useState<string | null>(null);
-  const [controlsExpanded, setControlsExpanded] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
   const [isNaturalLanguageSearch, setIsNaturalLanguageSearch] = useState(false);
   const [naturalLanguageResults, setNaturalLanguageResults] = useState<Tool[]>([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
 
   // Static high-level buckets for category filter
   const availableCategories = [
@@ -187,10 +187,6 @@ function App() {
 
   const [availableUsers, setAvailableUsers] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-
-  // Panel states
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [filterPanelVisible, setFilterPanelVisible] = useState(false);
 
   // Feature weights
   const [primaryFunctionWeight, setPrimaryFunctionWeight] = useState(0.3);
@@ -368,25 +364,6 @@ function App() {
 
   // Similarity threshold is now fixed at 0.6
 
-  // Handle feature weight changes
-  const handleFeatureWeightChange = useCallback((feature: string, newValue: number | number[]) => {
-    const value = newValue as number;
-    switch (feature) {
-      case 'Primary Function':
-        setPrimaryFunctionWeight(value);
-        break;
-      case 'Data Sources':
-        setDataSourcesWeight(value);
-        break;
-      case 'Target User/Client':
-        setTargetUserWeight(value);
-        break;
-      case 'Environment Type':
-        setEnvironmentTypeWeight(value);
-        break;
-    }
-  }, []);
-
   // Generic filter toggle handler
   const handleFilterToggle = (
     value: string,
@@ -488,31 +465,20 @@ function App() {
     setSearchFocused(true);
   };
 
-  // Handle key down events for search
+  // Handle key down events for search (only Escape)
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (searchTerm.trim()) {
-        handleNaturalLanguageSearch(searchTerm);
-        setSearchFocused(false); // hide overlay when showing results
-        setShowSearchResults(true);
-      }
-    } else if (e.key === 'Escape') {
+    if (e.key === 'Escape') {
       setSearchFocused(false);
       setShowSearchResults(false);
     }
   };
 
   // Handle selecting a tool from search results
-  const handleToolSelect = (tool: Tool) => {
-    setSelectedTool(tool);
+  const handleToolSelect = (_tool: Tool) => {
+    // setSelectedTool(tool); // Removed - No details modal anymore
+    // Action when tool is selected (e.g., center map?)
     setShowSearchResults(false);
     setSearchFocused(false);
-  };
-
-  // Close tool details and return to search
-  const handleCloseToolDetails = () => {
-    setSelectedTool(null);
   };
 
   // Handle natural language search
@@ -524,7 +490,8 @@ function App() {
     setShowSearchResults(true);
     
     try {
-      const response = await fetch('http://localhost:3001/api/natural-language-search', {
+      // Update the fetch URL to the Netlify function endpoint (relative path)
+      const response = await fetch('/api/natural-language-search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -777,824 +744,329 @@ function App() {
   }, [tools, searchTerm, selectedCategories, selectedFunctions, selectedEnvironments,
       selectedDataSources, selectedUsers, rawCsvData, isNaturalLanguageSearch, naturalLanguageResults]);
 
-  // Removed valuetext function as we no longer use sliders
+  const [controlsExpanded, setControlsExpanded] = useState(false);
+  const centerSearchRef = useRef<HTMLInputElement>(null);
+
+  // Effect to autofocus center search
+  useEffect(() => {
+    if (searchFocused && centerSearchRef.current) {
+      centerSearchRef.current.focus();
+    }
+  }, [searchFocused]);
+
+  // Handle clearing the search
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setShowSearchResults(false);
+    setSearchFocused(false);
+    setIsNaturalLanguageSearch(false);
+    setNaturalLanguageResults([]);
+    // Optionally reset filters as well if desired
+    // clearAllFilters();
+  };
 
   return (
     <ThemeProvider theme={theme}>
-      <div className="App">
-        <Paper
-          elevation={0}
-          square
-          sx={{
-            py: 1,
-            px: 2,
-            minHeight: '48px',
-            background: `linear-gradient(to right, ${colorPalette.darkGreen}, ${colorPalette.mediumGreen})`,
-            color: 'white',
-            borderBottom: '1px solid rgba(0,0,0,0.1)',
-            position: 'relative',
-            zIndex: 3
-          }}
-        >
-          <Container maxWidth="lg">
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              {/* GitHub link bottom left */}
-              <Box sx={{ position: 'fixed', bottom: 16, left: 16, zIndex: 1000 }}>
-                <a
-                  href="https://github.com/Jaystarter"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: 'black', opacity: 0.7 }}>
-                      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.12 0 0 .67-.21 2.2.82A7.68 7.68 0 0 1 8 4.84c.68.003 1.36.092 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.11.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-                    </svg>
-                    <span style={{ color: 'black', fontSize: 13, opacity: 0.7 }}>GitHub</span>
-                  </Box>
-                </a>
-              </Box>
-              <Typography variant="h6" component="h1" sx={{ fontSize: '1rem' }}>
-                TNFD Tools Relational Map
-              </Typography>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, maxWidth: 300, ml: 2 }}>
-                <TextField
-                  fullWidth
-                  placeholder="Search for tools or categories..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setIsNaturalLanguageSearch(false);
-                  }}
-                  onFocus={handleSearchFocus}
-                  variant="outlined"
-                  size="small"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <IconButton 
-                    size="small" 
-                    onClick={() => handleNaturalLanguageSearch(searchTerm)}
-                    sx={{ p: 0 }}
-                  >
-                    <SearchIcon sx={{ color: 'rgba(255,255,255,0.8)' }} />
-                  </IconButton>
-                      </InputAdornment>
-                    ),
-                    endAdornment: searchTerm ? (
-                      <InputAdornment position="end">
-                        <IconButton
-                          size="small"
-                          aria-label="clear search"
-                          onClick={() => {
-                    setSearchTerm('');
-                    setIsNaturalLanguageSearch(false);
-                    setNaturalLanguageResults([]);
-                  }}
-                          edge="end"
-                          sx={{ color: 'rgba(255,255,255,0.8)' }}
-                        >
-                          <ClearIcon />
-                        </IconButton>
-                      </InputAdornment>
-                    ) : null,
-                    sx: {
-                      bgcolor: 'rgba(255,255,255,0.15)',
-                      borderRadius: 2,
-                      color: 'white',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'transparent'
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255,255,255,0.3)'
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255,255,255,0.5)'
-                      },
-                      '&::placeholder': {
-                        color: 'rgba(255,255,255,0.7)',
-                        opacity: 1
-                      }
-                    }
-                  }}
-                  sx={{ color: 'white' }}
-                />
-                {searchTerm && (
-                  <Chip
-                    label={isNaturalLanguageSearch 
-                      ? `AI: ${filteredTools.length} matches` 
-                      : `${filteredTools.length} found`}
-                    size="small"
-                    sx={{
-                      ml: 1,
-                      bgcolor: isNaturalLanguageSearch ? 'rgba(75,181,67,0.25)' : 'rgba(255,255,255,0.15)',
-                      color: 'white'
-                    }}
-                  />
-                )}
-                <Button
-                  variant="outlined"
-                  component="label"
-                  sx={{ ml: 2, color: 'white', borderColor: 'rgba(255,255,255,0.7)' }}
-                >
-                  Upload CSV
-                  <input type="file" accept=".csv" hidden onChange={handleCsvUpload} />
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={handleResetCsv}
-                  sx={{ ml: 1, color: 'white', borderColor: 'rgba(255,255,255,0.7)' }}
-                >Reset CSV</Button>
-              </Box>
-            </Box>
-          </Container>
-        </Paper>
-
-        <Container maxWidth="lg" sx={{
-          mt: 2,
-          mb: 1,
-          position: 'relative',
-          zIndex: 2,
-          bgcolor: '#f5f5f5'
-        }}>
-          {/* Main controls area */}
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mb: 1 }}>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => setFilterPanelVisible(!filterPanelVisible)}
-              startIcon={filterPanelVisible ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            >
-              {filterPanelVisible ? 'Hide Filters' : 'Show Filters'}
-            </Button>
-            
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => setControlsExpanded(!controlsExpanded)}
-              startIcon={controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            >
-              {controlsExpanded ? 'Hide Controls' : 'Show Controls'}
-            </Button>
-          </Box>
-          
-          {/* Filters section */}
-          <Collapse in={filterPanelVisible}>
-            <Paper
-              elevation={2}
-              sx={{
-                mb: 2,
-                borderRadius: 2,
-                p: 1.5,
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-                position: 'relative',
-                zIndex: 2
-              }}
-            >
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                Filters
-              </Typography>
-              <Chip
-                label={`${filteredTools.length} tools`}
-                size="small"
-                sx={{ ml: 1, bgcolor: colorPalette.darkGreen, color: 'white' }}
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <AppBar position="static" elevation={0} sx={{ background: `linear-gradient(to right, ${colorPalette.darkGreen}, ${colorPalette.mediumGreen})`, minHeight:48, zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+          <Toolbar variant="dense" disableGutters sx={{ px:2, height:48, alignItems:'center' }}>
+            <IconButton component="a" href="https://github.com/Jaystarter" target="_blank" color="inherit" sx={{ mr:2 }}><GitHubIcon fontSize="small"/></IconButton>
+            <Typography variant="h6" sx={{ flexGrow:1, fontWeight:600, color:'white' }}>TNFD Tools Relational Map</Typography>
+            <Box component="form" onSubmit={(e: FormEvent<HTMLFormElement>) => {
+              e.preventDefault();
+              if (searchTerm.trim()) {
+                handleNaturalLanguageSearch(searchTerm);
+                setSearchFocused(false); // hide overlay when showing results
+                setShowSearchResults(true);
+              }
+            }} sx={{ display: 'flex', alignItems: 'center', bgcolor: 'white', color: colorPalette.darkGreen, borderRadius: 1, pl: 1, pr: 0.5, mr: 1, width: { xs: '100%', sm: 250, md: 300 } }}>
+              <InputBase
+                placeholder="Search tools..."
+                value={searchTerm}
+                onChange={e => { setSearchTerm(e.target.value); setIsNaturalLanguageSearch(false); }}
+                onFocus={handleSearchFocus}
+                onKeyDown={handleSearchKeyDown}
+                sx={{ color: 'inherit', ml: 1, flex: 1 }}
+                inputProps={{ 'aria-label': 'search tools' }}
               />
-
-              {/* Show active filter count */}
-              {(selectedCategories.length > 0 || selectedFunctions.length > 0 ||
-                selectedEnvironments.length > 0 || selectedDataSources.length > 0 ||
-                selectedUsers.length > 0) && (
-                <Chip
-                  label={`${selectedCategories.length + selectedFunctions.length +
-                    selectedEnvironments.length + selectedDataSources.length +
-                    selectedUsers.length} active filters`}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  sx={{ ml: 1 }}
-                />
-              )}
+              <IconButton type="submit" size="small" sx={{ color: colorPalette.darkGreen, ml: 0.5 }}><SearchIcon /></IconButton>
             </Box>
-
-            <Box>
-              {/* Clear all filters button */}
-              {(selectedCategories.length > 0 || selectedFunctions.length > 0 ||
-                selectedEnvironments.length > 0 || selectedDataSources.length > 0 ||
-                selectedUsers.length > 0 || searchTerm) && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="error"
-                  onClick={clearAllFilters}
-                  startIcon={<ClearIcon />}
-                  sx={{ mr: 1 }}
-                >
-                  Clear All
-                </Button>
-              )}
-
-              {/* Expand/collapse filter panel */}
-              <Button
-                size="small"
-                variant="outlined"
-                color="primary"
-                onClick={() => setFiltersExpanded(!filtersExpanded)}
-                endIcon={filtersExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              >
-                {filtersExpanded ? 'Hide Filters' : 'Show Filters'}
-              </Button>
+            <Tooltip title="Upload CSV"><IconButton component="label" sx={{ ml: 0.5, bgcolor: 'white', color: colorPalette.darkGreen, p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.8)' } }}><UploadFileIcon /><input hidden type="file" accept=".csv" onChange={handleCsvUpload} /></IconButton></Tooltip>
+            <Tooltip title="Reset CSV"><IconButton onClick={handleResetCsv} sx={{ ml: 0.5, bgcolor: 'white', color: colorPalette.darkGreen, p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.8)' } }}><RefreshIcon /></IconButton></Tooltip>
+          </Toolbar>
+        </AppBar>
+        <ClickAwayListener onClickAway={() => setControlsExpanded(false)}>
+          <Box sx={{ position: 'relative', width: '100%', mt: 2, zIndex: 2 }}>
+            <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'white', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+              <IconButton size="small" onClick={() => setControlsExpanded(prev => !prev)} sx={{ p: 0 }}>
+                {controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
             </Box>
-          </Paper>
-
-          {/* Expanded filter panel */}
-          <Collapse in={filtersExpanded}>
-            <Paper
-              elevation={2}
-              sx={{
-                mb: 2,
-                borderRadius: 2,
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2
-              }}
-            >
-              {/* Category filters */}
-              {availableCategories.length > 0 && (
-                <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                      Categories
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => {
-                        if (selectedCategories.length === availableCategories.length) {
-                          // If all are selected, clear all
-                          setSelectedCategories([]);
-                        } else {
-                          // Otherwise, select all
-                          setSelectedCategories([...availableCategories]);
-                        }
-                      }}
-                      sx={{ minWidth: 'auto', py: 0.5, px: 1 }}
+            <Slide direction="down" in={controlsExpanded} mountOnEnter unmountOnExit timeout={500}>
+              <Container maxWidth="lg" sx={{ bgcolor: 'transparent', pt: 0, pb: 0 }}>
+                <Paper elevation={2} sx={{ mb: 0, borderRadius: 0, p: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Tabs
+                      value={tabValue}
+                      onChange={(_, newVal) => setTabValue(newVal)}
+                      textColor="primary"
+                      variant="fullWidth"
+                      sx={{ flex: 1 }}
                     >
-                      {selectedCategories.length === availableCategories.length ? 'Clear All' : 'Select All'}
-                    </Button>
+                      <Tab label="Categories" />
+                      <Tab label="Weights" />
+                    </Tabs>
+                    <IconButton size="small" onClick={() => setControlsExpanded(prev => !prev)} sx={{ ml: 1 }}>
+                      {controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
                   </Box>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {availableCategories.map(category => (
-                      <Chip
-                        key={category}
-                        label={category}
-                        onClick={() => handleCategoryToggle(category)}
-                        color={selectedCategories.includes(category) ? "primary" : "default"}
-                        variant={selectedCategories.includes(category) ? "filled" : "outlined"}
-                        size="small"
-                        sx={{
-                          borderRadius: '16px',
-                          '&.MuiChip-colorPrimary': {
-                            backgroundColor: colorPalette.darkGreen
-                          }
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Primary Function filters */}
-              {availableFunctions.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                    Primary Functions
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {availableFunctions.map(func => (
-                      <Chip
-                        key={func}
-                        label={func}
-                        onClick={() => handleFunctionToggle(func)}
-                        color={selectedFunctions.includes(func) ? "primary" : "default"}
-                        variant={selectedFunctions.includes(func) ? "filled" : "outlined"}
-                        size="small"
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Environment Type filters */}
-              {availableEnvironments.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                    Environment Types
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {availableEnvironments.map(env => (
-                      <Chip
-                        key={env}
-                        label={env}
-                        onClick={() => handleEnvironmentToggle(env)}
-                        color={selectedEnvironments.includes(env) ? "primary" : "default"}
-                        variant={selectedEnvironments.includes(env) ? "filled" : "outlined"}
-                        size="small"
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Data Sources filters */}
-              {availableDataSources.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                    Data Sources
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {availableDataSources.map(source => (
-                      <Chip
-                        key={source}
-                        label={source}
-                        onClick={() => handleDataSourceToggle(source)}
-                        color={selectedDataSources.includes(source) ? "primary" : "default"}
-                        variant={selectedDataSources.includes(source) ? "filled" : "outlined"}
-                        size="small"
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Target User filters */}
-              {availableUsers.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                    Target Users
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {availableUsers.map(user => (
-                      <Chip
-                        key={user}
-                        label={user}
-                        onClick={() => handleUserToggle(user)}
-                        color={selectedUsers.includes(user) ? "primary" : "default"}
-                        variant={selectedUsers.includes(user) ? "filled" : "outlined"}
-                        size="small"
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </Paper>
-          </Collapse>
-          </Collapse> {/* Added missing closing tag for the filter panel visibility collapse */}
-          
-          {/* Controls section */}
-          <Collapse in={controlsExpanded}>
-            <Paper
-              className="controlsPaper"
-              elevation={2}
-              sx={{
-                mb: 2,
-                borderRadius: 2,
-                p: 1.5,
-                position: 'relative',
-                zIndex: 2
-              }}
-            >
-            <Box sx={{
-              mb: controlsExpanded ? 1 : 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <TuneIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" component="h2">
-                  What is important to you?
-                </Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => setControlsExpanded(!controlsExpanded)}
-                  sx={{ ml: 1 }}
-                  aria-label={controlsExpanded ? "Collapse controls" : "Expand controls"}
-                >
-                  {controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                </IconButton>
-              </Box>
-            </Box>
-
-            <Collapse in={controlsExpanded}>
-              <Divider sx={{ mb: 1.5 }} />
-
-              <Grid container spacing={1}>
-                {/* Feature Weight Sliders in compact format */}
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ mb: 0 }}>
-                    <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      Primary Function: {primaryFunctionWeight.toFixed(2)}
-                      <Tooltip title="Determines how much the tool's main functionality influences clustering" arrow>
-                        <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
-                      </Tooltip>
-                    </Typography>
-                    <Box sx={{ display: 'flex', width: '225px', border: `2px solid ${colorPalette.darkGreen}`, borderRadius: '4px' }}>
-                      {[0.1, 0.2, 0.3, 0.4, 0.5].map((value, index) => {
-                        const isActive = primaryFunctionWeight >= value;
-                        return (
-                          <Box 
-                            key={index}
-                            onClick={() => handleFeatureWeightChange('Primary Function', value)}
-                            sx={{
-                              width: '45px',
-                              height: '36px',
-                              borderRight: index < 4 ? `1px solid ${colorPalette.darkGreen}` : 'none',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              cursor: 'pointer',
-                              backgroundColor: isActive ? 'rgba(107, 144, 128, 0.1)' : 'transparent',
-                              position: 'relative',
-                              '&:hover': {
-                                backgroundColor: 'rgba(107, 144, 128, 0.2)',
-                              }
-                            }}
-                          >
-                            {isActive && (
-                              <Box sx={{ 
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                              }}>
-                                <Box sx={{ 
-                                  width: '100%', 
-                                  height: '100%',
-                                  backgroundImage: 'linear-gradient(135deg, transparent 0%, transparent 40%, #6B9080 40%, #6B9080 60%, transparent 60%, transparent 100%)',
-                                  backgroundSize: '8px 8px',
-                                  opacity: 0.7
-                                }} />
-                              </Box>
-                            )}
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ mb: 0 }}>
-                    <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      Data Sources: {dataSourcesWeight.toFixed(2)}
-                      <Tooltip title="Affects how data collection methods impact tool grouping" arrow>
-                        <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
-                      </Tooltip>
-                    </Typography>
-                    <Box sx={{ display: 'flex', width: '225px', border: `2px solid ${colorPalette.darkGreen}`, borderRadius: '4px' }}>
-                      {[0.1, 0.2, 0.3, 0.4, 0.5].map((value, index) => {
-                        const isActive = dataSourcesWeight >= value;
-                        return (
-                          <Box 
-                            key={index}
-                            onClick={() => handleFeatureWeightChange('Data Sources', value)}
-                            sx={{
-                              width: '45px',
-                              height: '36px',
-                              borderRight: index < 4 ? `1px solid ${colorPalette.darkGreen}` : 'none',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              cursor: 'pointer',
-                              backgroundColor: isActive ? 'rgba(107, 144, 128, 0.1)' : 'transparent',
-                              position: 'relative',
-                              '&:hover': {
-                                backgroundColor: 'rgba(107, 144, 128, 0.2)',
-                              }
-                            }}
-                          >
-                            {isActive && (
-                              <Box sx={{ 
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                              }}>
-                                <Box sx={{ 
-                                  width: '100%', 
-                                  height: '100%',
-                                  backgroundImage: 'linear-gradient(135deg, transparent 0%, transparent 40%, #6B9080 40%, #6B9080 60%, transparent 60%, transparent 100%)',
-                                  backgroundSize: '8px 8px',
-                                  opacity: 0.7
-                                }} />
-                              </Box>
-                            )}
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ mb: 0 }}>
-                    <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      Target User: {targetUserWeight.toFixed(2)}
-                      <Tooltip title="Controls how the intended audience affects tool relationships" arrow>
-                        <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
-                      </Tooltip>
-                    </Typography>
-                    <Box sx={{ display: 'flex', width: '225px', border: `2px solid ${colorPalette.darkGreen}`, borderRadius: '4px' }}>
-                      {[0.1, 0.2, 0.3, 0.4, 0.5].map((value, index) => {
-                        const isActive = targetUserWeight >= value;
-                        return (
-                          <Box 
-                            key={index}
-                            onClick={() => handleFeatureWeightChange('Target User/Client', value)}
-                            sx={{
-                              width: '45px',
-                              height: '36px',
-                              borderRight: index < 4 ? `1px solid ${colorPalette.darkGreen}` : 'none',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              cursor: 'pointer',
-                              backgroundColor: isActive ? 'rgba(107, 144, 128, 0.1)' : 'transparent',
-                              position: 'relative',
-                              '&:hover': {
-                                backgroundColor: 'rgba(107, 144, 128, 0.2)',
-                              }
-                            }}
-                          >
-                            {isActive && (
-                              <Box sx={{ 
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                              }}>
-                                <Box sx={{ 
-                                  width: '100%', 
-                                  height: '100%',
-                                  backgroundImage: 'linear-gradient(135deg, transparent 0%, transparent 40%, #6B9080 40%, #6B9080 60%, transparent 60%, transparent 100%)',
-                                  backgroundSize: '8px 8px',
-                                  opacity: 0.7
-                                }} />
-                              </Box>
-                            )}
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ mb: 0 }}>
-                    <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      Environment Type: {environmentTypeWeight.toFixed(2)}
-                      <Tooltip title="Influences how environmental context affects tool similarity" arrow>
-                        <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
-                      </Tooltip>
-                    </Typography>
-                    <Box sx={{ display: 'flex', width: '225px', border: `2px solid ${colorPalette.darkGreen}`, borderRadius: '4px' }}>
-                      {[0.1, 0.2, 0.3, 0.4, 0.5].map((value, index) => {
-                        const isActive = environmentTypeWeight >= value;
-                        return (
-                          <Box 
-                            key={index}
-                            onClick={() => handleFeatureWeightChange('Environment Type', value)}
-                            sx={{
-                              width: '45px',
-                              height: '36px',
-                              borderRight: index < 4 ? `1px solid ${colorPalette.darkGreen}` : 'none',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              cursor: 'pointer',
-                              backgroundColor: isActive ? 'rgba(107, 144, 128, 0.1)' : 'transparent',
-                              position: 'relative',
-                              '&:hover': {
-                                backgroundColor: 'rgba(107, 144, 128, 0.2)',
-                              }
-                            }}
-                          >
-                            {isActive && (
-                              <Box sx={{ 
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                              }}>
-                                <Box sx={{ 
-                                  width: '100%', 
-                                  height: '100%',
-                                  backgroundImage: 'linear-gradient(135deg, transparent 0%, transparent 40%, #6B9080 40%, #6B9080 60%, transparent 60%, transparent 100%)',
-                                  backgroundSize: '8px 8px',
-                                  opacity: 0.7
-                                }} />
-                              </Box>
-                            )}
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Collapse>
-            </Paper>
-          </Collapse>
-        </Container>
-
-        {isLoading ? (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              height: controlsExpanded ? 'calc(100vh - 230px)' : 'calc(100vh - 180px)',
-              flexDirection: 'column'
-            }}
-          >
-            <Box className="loading-indicator" />
-            <Typography variant="body2" color="text.secondary">
-              Processing tool relationships...
-            </Typography>
-          </Box>
-        ) : (
-          <div className="graph-container" style={{ height: controlsExpanded ? 'calc(100vh - 230px)' : 'calc(100vh - 180px)' }}>
-            <ForceGraphContainer
-              controlsExpanded={controlsExpanded}
-              toolsData={filteredTools}
-            />
-
-            {/* Search Overlay TextField */}
-            <Fade in={searchFocused && !showSearchResults}>
-              <Box
-                sx={{
-                  position: 'fixed',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '80%',
-                  maxWidth: '800px',
-                  zIndex: 1400,
-                }}
-              >
-                <TextField
-                  fullWidth
-                  placeholder="Describe what you're looking for..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setIsNaturalLanguageSearch(false);
-                  }}
-                  onKeyDown={handleSearchKeyDown}
-                  autoFocus
-                  variant="outlined"
-                  size="medium"
-                />
-              </Box>
-            </Fade>
-
-            {/* Backdrop remains */}
-            <Backdrop
-              sx={{
-                backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                backdropFilter: 'blur(6px)',
-                zIndex: 1100,
-                transition: 'all 0.3s ease-in-out',
-              }}
-              open={searchFocused || showSearchResults}
-              onClick={() => {
-                if (!showSearchResults) {
-                  setSearchFocused(false);
-                }
-              }}
-            />
-            
-            {/* Search Results Modal */}
-            <Fade in={showSearchResults}>
-              <Box
-                sx={{
-                  position: 'fixed',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '80%',
-                  maxWidth: '800px',
-                  bgcolor: 'background.paper',
-                  borderRadius: 2,
-                  boxShadow: 24,
-                  p: 2,
-                  zIndex: 1300,
-                  overflow: 'auto',
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">
-                    {isNaturalLanguageSearch ? 'AI Search Results' : 'Search Results'}
-                  </Typography>
-                  <IconButton onClick={() => setShowSearchResults(false)}>
-                    <CloseIcon />
-                  </IconButton>
-                </Box>
-                
-                {isLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : filteredTools.length > 0 ? (
-                  <List>
-                    {filteredTools.map((tool) => (
-                      <ListItemButton 
-                        key={tool.id}
-                        onClick={() => handleToolSelect(tool)}
-                        sx={{
-                          mb: 1,
-                          borderRadius: 1,
-                          '&:hover': {
-                            bgcolor: 'rgba(46, 125, 50, 0.08)',
-                          },
-                        }}
-                      >
-                        <ListItemText
-                          primary={
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{tool.name}</Typography>
-                              <Chip 
-                                size="small" 
-                                label={tool.category} 
-                                sx={{ 
-                                  bgcolor: colorPalette.mediumGreen,
-                                  color: 'white',
-                                  fontWeight: 500,
-                                  fontSize: '0.75rem',
+                  <Collapse in={controlsExpanded} unmountOnExit>
+                    {/* Categories Tab */}
+                    {tabValue === 0 && (
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <Chip label={`${filteredTools.length} tools`} size="small" sx={{ ml: 1, bgcolor: colorPalette.darkGreen, color: 'white' }} />
+                        </Box>
+                        {/* Category filters */}
+                        {availableCategories.length > 0 && (
+                          <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                Categories
+                              </Typography>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => {
+                                  if (selectedCategories.length === availableCategories.length) {
+                                    setSelectedCategories([]);
+                                  } else {
+                                    setSelectedCategories([...availableCategories]);
+                                  }
                                 }}
+                                sx={{ minWidth: 'auto', py: 0.5, px: 1 }}
+                              >
+                                {selectedCategories.length === availableCategories.length ? 'Clear All' : 'Select All'}
+                              </Button>
+                            </Box>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {availableCategories.map(category => (
+                                <Chip
+                                  key={category}
+                                  label={category}
+                                  onClick={() => handleCategoryToggle(category)}
+                                  color={selectedCategories.includes(category) ? "primary" : "default"}
+                                  variant={selectedCategories.includes(category) ? "filled" : "outlined"}
+                                  size="small"
+                                  sx={{ borderRadius: '16px', '&.MuiChip-colorPrimary': { backgroundColor: colorPalette.darkGreen } }}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                        {/* Primary Function filters */}
+                        {availableFunctions.length > 0 && (
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                              Primary Functions
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {availableFunctions.map(func => (
+                                <Chip
+                                  key={func}
+                                  label={func}
+                                  onClick={() => handleFunctionToggle(func)}
+                                  color={selectedFunctions.includes(func) ? "primary" : "default"}
+                                  variant={selectedFunctions.includes(func) ? "filled" : "outlined"}
+                                  size="small"
+                                  sx={{ borderRadius: '16px', '&.MuiChip-colorPrimary': { backgroundColor: colorPalette.darkGreen } }}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                        {/* Environment Type filters */}
+                        {availableEnvironments.length > 0 && (
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                              Environment Types
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {availableEnvironments.map(env => (
+                                <Chip
+                                  key={env}
+                                  label={env}
+                                  onClick={() => handleEnvironmentToggle(env)}
+                                  color={selectedEnvironments.includes(env) ? "primary" : "default"}
+                                  variant={selectedEnvironments.includes(env) ? "filled" : "outlined"}
+                                  size="small"
+                                  sx={{ borderRadius: '16px', '&.MuiChip-colorPrimary': { backgroundColor: colorPalette.darkGreen } }}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                        {/* Data Sources filters */}
+                        {availableDataSources.length > 0 && (
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                              Data Sources
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {availableDataSources.map(source => (
+                                <Chip
+                                  key={source}
+                                  label={source}
+                                  onClick={() => handleDataSourceToggle(source)}
+                                  color={selectedDataSources.includes(source) ? "primary" : "default"}
+                                  variant={selectedDataSources.includes(source) ? "filled" : "outlined"}
+                                  size="small"
+                                  sx={{ borderRadius: '16px', '&.MuiChip-colorPrimary': { backgroundColor: colorPalette.darkGreen } }}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                        {/* Target User filters */}
+                        {availableUsers.length > 0 && (
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                              Target Users
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {availableUsers.map(user => (
+                                <Chip
+                                  key={user}
+                                  label={user}
+                                  onClick={() => handleUserToggle(user)}
+                                  color={selectedUsers.includes(user) ? "primary" : "default"}
+                                  variant={selectedUsers.includes(user) ? "filled" : "outlined"}
+                                  size="small"
+                                  sx={{ borderRadius: '16px', '&.MuiChip-colorPrimary': { backgroundColor: colorPalette.darkGreen } }}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
+                    )}
+
+                    {/* Weights Tab */}
+                    {tabValue === 1 && (
+                      <Box>
+                        <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
+                          What is important to you?
+                        </Typography>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6} md={3}>
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                Primary Function: {primaryFunctionWeight.toFixed(2)}
+                                <Tooltip title="Determines how much the tool's main functionality influences clustering" arrow>
+                                  <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
+                                </Tooltip>
+                              </Typography>
+                              <Slider 
+                                value={primaryFunctionWeight}
+                                onChange={(_event: Event, newValue: number | number[]) => setPrimaryFunctionWeight(newValue as number)} 
+                                aria-labelledby="primary-function-weight-slider"
+                                valueLabelDisplay="auto"
+                                step={0.1}
+                                marks
+                                min={0}
+                                max={1}
                               />
                             </Box>
-                          }
-                          secondary={
-                            <Box sx={{ mt: 1 }}>
-                              {tool.primaryFunction && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', mb: 0.5 }}>
-                                  <CategoryIcon sx={{ fontSize: '0.875rem', mr: 0.5, opacity: 0.7 }} />
-                                  <span>{tool.primaryFunction}</span>
-                                </Box>
-                              )}
-                              {tool.dataSources && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', mb: 0.5 }}>
-                                  <SourceIcon sx={{ fontSize: '0.875rem', mr: 0.5, opacity: 0.7 }} />
-                                  <span>{tool.dataSources}</span>
-                                </Box>
-                              )}
+                          </Grid>
+
+                          <Grid item xs={12} sm={6} md={3}>
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                Data Sources: {dataSourcesWeight.toFixed(2)}
+                                <Tooltip title="Affects how data collection methods impact tool grouping" arrow>
+                                  <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
+                                </Tooltip>
+                              </Typography>
+                              <Slider 
+                                value={dataSourcesWeight} 
+                                onChange={(_event: Event, newValue: number | number[]) => setDataSourcesWeight(newValue as number)} 
+                                aria-labelledby="data-sources-weight-slider"
+                                valueLabelDisplay="auto"
+                                step={0.1}
+                                marks
+                                min={0}
+                                max={1}
+                              />
                             </Box>
-                          }
-                        />
-                      </ListItemButton>
-                    ))}
-                  </List>
-                ) : (
-                  <Box sx={{ p: 4, textAlign: 'center' }}>
-                    <Typography variant="body1" color="text.secondary">
-                      No tools match your search criteria
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Fade>
-            
-            {/* Tool Details Modal */}
-            <Modal
-              open={selectedTool !== null}
-              onClose={handleCloseToolDetails}
-              aria-labelledby="tool-details-title"
-            >
-              <Fade in={selectedTool !== null}>
+                          </Grid>
+
+                          <Grid item xs={12} sm={6} md={3}>
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                Target User: {targetUserWeight.toFixed(2)}
+                                <Tooltip title="Controls how the intended audience affects tool relationships" arrow>
+                                  <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
+                                </Tooltip>
+                              </Typography>
+                              <Slider 
+                                value={targetUserWeight} 
+                                onChange={(_event: Event, newValue: number | number[]) => setTargetUserWeight(newValue as number)} 
+                                aria-labelledby="target-user-weight-slider"
+                                valueLabelDisplay="auto"
+                                step={0.1}
+                                marks
+                                min={0}
+                                max={1}
+                              />
+                            </Box>
+                          </Grid>
+
+                          <Grid item xs={12} sm={6} md={3}>
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                Environment Type: {environmentTypeWeight.toFixed(2)}
+                                <Tooltip title="Influences how environmental context affects tool similarity" arrow>
+                                  <InfoIcon fontSize="inherit" sx={{ ml: 0.5, color: 'text.secondary' }} />
+                                </Tooltip>
+                              </Typography>
+                              <Slider 
+                                value={environmentTypeWeight} 
+                                onChange={(_event: Event, newValue: number | number[]) => setEnvironmentTypeWeight(newValue as number)} 
+                                aria-labelledby="environment-type-weight-slider"
+                                valueLabelDisplay="auto"
+                                step={0.1}
+                                marks
+                                min={0}
+                                max={1}
+                              />
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      </Box>
+                    )}
+                  </Collapse>
+                </Paper>
+              </Container>
+            </Slide>
+          </Box>
+        </ClickAwayListener>
+
+        <Box sx={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, flexDirection: 'column' }}>
+              <Box className="loading-indicator" />
+              <Typography variant="body2" color="text.secondary">
+                Processing tool relationships...
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ flex: 1, position: 'relative' }}>
+              <ForceGraphContainer
+                controlsExpanded={false}
+                toolsData={filteredTools}
+              />
+              {/* Search Overlay TextField */}
+              <Fade in={searchFocused && !showSearchResults}>
                 <Box
                   sx={{
                     position: 'fixed',
@@ -1603,82 +1075,171 @@ function App() {
                     transform: 'translate(-50%, -50%)',
                     width: '80%',
                     maxWidth: '800px',
-                    bgcolor: 'background.paper',
-                    borderRadius: 2,
-                    boxShadow: 24,
-                    p: 0,
-                    maxHeight: '80vh',
-                    overflow: 'auto',
+                    zIndex: 1400,
                   }}
                 >
-                  {selectedTool && (
-                    <Card>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <Typography variant="h5" component="h2">
-                            {selectedTool.name}
-                          </Typography>
-                          <Chip 
-                            label={selectedTool.category} 
-                            sx={{ 
-                              bgcolor: colorPalette.mediumGreen,
-                              color: 'white',
-                              fontWeight: 500,
+                  <Box
+                    component="form"
+                    onSubmit={(e: FormEvent<HTMLFormElement>) => {
+                      e.preventDefault();
+                      if (searchTerm.trim()) {
+                        handleNaturalLanguageSearch(searchTerm);
+                        setSearchFocused(false); // hide overlay when showing results
+                        setShowSearchResults(true);
+                      }
+                    }}
+                    sx={{ width: '100%' }}
+                  >
+                    <TextField
+                      inputRef={centerSearchRef}
+                      fullWidth
+                      placeholder="Describe what you're looking for..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setIsNaturalLanguageSearch(false);
+                      }}
+                      onFocus={handleSearchFocus}
+                      onKeyDown={handleSearchKeyDown}
+                      sx={{ color: 'inherit', ml: 1, flex: 1 }}
+                      inputProps={{ 'aria-label': 'search tools' }}
+                    />
+                  </Box>
+                </Box>
+              </Fade>
+
+              {/* Backdrop remains */}
+              <Backdrop
+                sx={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(6px)',
+                  zIndex: 1100,
+                  transition: 'all 0.3s ease-in-out',
+                }}
+                open={searchFocused || showSearchResults}
+                onClick={() => {
+                  if (!showSearchResults) {
+                    setSearchFocused(false);
+                  }
+                }}
+              />
+              
+              {/* Search Results Modal Wrapper */}
+              <Fade in={showSearchResults}>
+                <Box
+                  sx={{
+                    position: 'fixed',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 1300,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    width: '80%', // Ensure wrapper takes width
+                    maxWidth: '800px', // Ensure wrapper takes maxWidth
+                  }}
+                >
+                  {/* Inner Results Box */}
+                  <Box
+                    sx={{
+                      width: '100%', // Take full width of parent wrapper
+                      bgcolor: 'background.paper',
+                      borderRadius: 2,
+                      boxShadow: 24,
+                      p: 2,
+                      overflow: 'auto',
+                      maxHeight: '70vh', // Limit height to prevent overflow
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6">
+                        {isNaturalLanguageSearch ? 'AI Search Results' : 'Search Results'}
+                      </Typography>
+                      <IconButton onClick={handleClearSearch}>
+                        <CloseIcon />
+                      </IconButton>
+                    </Box>
+
+                    {isLoading ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                        <CircularProgress />
+                      </Box>
+                    ) : filteredTools.length > 0 ? (
+                      <List>
+                        {filteredTools.map((tool) => (
+                          <ListItemButton 
+                            key={tool.id}
+                            onClick={() => handleToolSelect(tool)}
+                            sx={{
+                              mb: 1,
+                              borderRadius: 1,
+                              '&:hover': {
+                                bgcolor: 'rgba(46, 125, 50, 0.08)',
+                              },
                             }}
-                          />
-                        </Box>
-                        
-                        <Divider sx={{ my: 2 }} />
-                        
-                        {selectedTool.primaryFunction && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                              Primary Function
-                            </Typography>
-                            <Typography variant="body1">{selectedTool.primaryFunction}</Typography>
-                          </Box>
-                        )}
-                        
-                        {selectedTool.dataSources && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                              Data Sources
-                            </Typography>
-                            <Typography variant="body1">{selectedTool.dataSources}</Typography>
-                          </Box>
-                        )}
-                        
-                        {selectedTool.targetUser && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                              Target Users
-                            </Typography>
-                            <Typography variant="body1">{selectedTool.targetUser}</Typography>
-                          </Box>
-                        )}
-                        
-                        {selectedTool.environmentType && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                              Environment Type
-                            </Typography>
-                            <Typography variant="body1">{selectedTool.environmentType}</Typography>
-                          </Box>
-                        )}
-                      </CardContent>
-                      <CardActions>
-                        <Button onClick={handleCloseToolDetails}>
-                          Close
-                        </Button>
-                      </CardActions>
-                    </Card>
+                          >
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{tool.name}</Typography>
+                                  <Chip 
+                                    size="small" 
+                                    label={tool.category} 
+                                    sx={{ 
+                                      bgcolor: colorPalette.mediumGreen,
+                                      color: 'white',
+                                      fontWeight: 500,
+                                      fontSize: '0.75rem',
+                                    }}
+                                  />
+                                </Box>
+                              }
+                              secondary={
+                                <Box sx={{ mt: 1 }}>
+                                  {tool.primaryFunction && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', mb: 0.5 }}>
+                                      <CategoryIcon sx={{ fontSize: '0.875rem', mr: 0.5, opacity: 0.7 }} />
+                                      <span>{tool.primaryFunction}</span>
+                                    </Box>
+                                  )}
+                                  {tool.dataSources && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', mb: 0.5 }}>
+                                      <SourceIcon sx={{ fontSize: '0.875rem', mr: 0.5, opacity: 0.7 }} />
+                                      <span>{tool.dataSources}</span>
+                                    </Box>
+                                  )}
+                                </Box>
+                              }
+                            />
+                          </ListItemButton>
+                        ))}
+                      </List>
+                    ) : (
+                      <Box sx={{ p: 4, textAlign: 'center' }}>
+                        <Typography variant="body1" color="text.secondary">
+                          No tools match your current search or filters.
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                  {filteredTools.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Button 
+                        variant="contained" 
+                        onClick={() => setShowSearchResults(false)}
+                        sx={{ backgroundColor: colorPalette.mediumGreen, '&:hover': { backgroundColor: colorPalette.darkGreen } }}
+                      >
+                        Show Results on Map
+                      </Button>
+                    </Box>
                   )}
                 </Box>
               </Fade>
-            </Modal>
-          </div>
-        )}
-      </div>
+            </Box>
+          )}
+        </Box>
+      </Box>
     </ThemeProvider>
   );
 }

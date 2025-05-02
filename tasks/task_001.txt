@@ -1,0 +1,11 @@
+# Task ID: 1
+# Title: Setup ShadCN UI and Tailwind CSS Infrastructure
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Install and configure ShadCN UI, Tailwind CSS, and related dependencies. Set up the project structure to support incremental component migration.
+# Details:
+Install required packages: shadcn/ui, tailwindcss, postcss, autoprefixer. Configure tailwind.config.js with TNFD brand colors and design tokens. Set up the components.json file for ShadCN CLI. Create a directory structure for new components. Implement a strategy for coexistence of MUI and ShadCN during migration.
+
+# Test Strategy:
+Verify successful installation by creating a simple test component. Ensure Tailwind classes are properly processed. Confirm that existing MUI components still function correctly alongside the new setup.

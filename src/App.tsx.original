@@ -1,0 +1,1207 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Input } from './components/ui/input';
+import './App.css';
+import { ForceGraphContainer } from './components/ForceGraphContainer';
+import { Tool, tools as defaultTools } from './data/tools';
+import { FeatureWeights } from './utils/clusteringUtils';
+import Papa from 'papaparse';
+
+// Utility function to load CSV from different possible locations
+const loadCSVFromPossibleLocations = async (): Promise<string> => {
+  const possiblePaths = [
+    '/TNFD Tools Prototype Data.csv',
+    '/TNFD_Tools_Prototype_Data.csv',
+    './TNFD Tools Prototype Data.csv',
+    '../TNFD Tools Prototype Data.csv'
+  ];
+
+  for (const path of possiblePaths) {
+    try {
+      const response = await fetch(path);
+      if (response.ok) {
+        const content = await response.text();
+        console.log(`Successfully loaded CSV from ${path}`);
+        return content;
+      }
+    } catch (err) {
+      console.warn(`Failed to load from ${path}`);
+    }
+  }
+
+  throw new Error('Could not load CSV file from any location');
+};
+
+// Import ShadCN UI components
+import { Card, CardContent, CardFooter } from './components/ui/card';
+import { Badge } from './components/ui/badge';
+import { Info } from 'lucide-react';
+import { Collapse } from './components/ui/collapse';
+import { Divider } from './components/ui/divider';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
+import { Button } from './components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './components/ui/dialog';
+import { Typography } from './components/ui/typography';
+import { Progress } from './components/ui/progress';
+
+// Import Lucide icons
+import { Search, X, TrendingUp, ChevronDown as ExpandMoreIcon, ChevronUp as ExpandLessIcon, Settings as TuneIcon, FolderKanban as CategoryIcon, BookOpen as SourceIcon } from 'lucide-react';
+
+// Import color palette
+import { colorPalette } from './data/tools';
+
+// ShadCN uses Tailwind CSS for styling, so we don't need a theme provider
+
+// Web Worker runner for heavy processing
+const runProcessInWorker = (
+  csvContent: string,
+  similarityThreshold: number,
+  featureWeights: FeatureWeights
+): Promise<Tool[]> => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      new URL('./workers/processWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    worker.onmessage = (e: MessageEvent) => {
+      if (e.data.error) reject(e.data.error);
+      else resolve(e.data.tools);
+      worker.terminate();
+    };
+    worker.onerror = (e) => {
+      reject(e.message);
+      worker.terminate();
+    };
+    worker.postMessage({ csvContent, similarityThreshold, featureWeights });
+  });
+};
+
+function App() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [tools, setTools] = useState<Tool[]>(defaultTools);
+  const [isLoading, setIsLoading] = useState(false);
+  const [similarityThreshold, setSimilarityThreshold] = useState(0.6);
+  const [csvLoaded, setCsvLoaded] = useState(false);
+  const [rawCsvData, setRawCsvData] = useState<string | null>(null);
+  const [controlsExpanded, setControlsExpanded] = useState(false);
+  const [isNaturalLanguageSearch, setIsNaturalLanguageSearch] = useState(false);
+  const [naturalLanguageResults, setNaturalLanguageResults] = useState<Tool[]>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
+
+  // Static high-level buckets for category filter
+  const availableCategories = [
+    'Sensors',
+    'Supply Chain',
+    'Analysis',
+    'Visualization',
+    'Open Data'
+  ];
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  // Additional filter criteria
+  const [availableFunctions, setAvailableFunctions] = useState<string[]>([]);
+  const [selectedFunctions, setSelectedFunctions] = useState<string[]>([]);
+
+  const [availableEnvironments, setAvailableEnvironments] = useState<string[]>([]);
+  const [selectedEnvironments, setSelectedEnvironments] = useState<string[]>([]);
+
+  const [availableDataSources, setAvailableDataSources] = useState<string[]>([]);
+  const [selectedDataSources, setSelectedDataSources] = useState<string[]>([]);
+
+  const [availableUsers, setAvailableUsers] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+
+  // Panel states
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [filterPanelVisible, setFilterPanelVisible] = useState(false);
+
+  // Feature weights
+  const [primaryFunctionWeight, setPrimaryFunctionWeight] = useState(0.3);
+  const [dataSourcesWeight, setDataSourcesWeight] = useState(0.25);
+  const [targetUserWeight, setTargetUserWeight] = useState(0.25);
+  const [environmentTypeWeight, setEnvironmentTypeWeight] = useState(0.2);
+
+  // Combine weights into an object
+  const featureWeights = useMemo<FeatureWeights>(() => ({
+    'Primary Function': primaryFunctionWeight,
+    'Data Sources': dataSourcesWeight,
+    'Target User/Client': targetUserWeight,
+    'Environment Type': environmentTypeWeight
+  }), [primaryFunctionWeight, dataSourcesWeight, targetUserWeight, environmentTypeWeight]);
+
+  // Load CSV data only once on initial render
+  useEffect(() => {
+    const initialDataLoad = async () => {
+      try {
+        setIsLoading(true);
+
+        // Attempt to load CSV (or use uploaded version)
+        const savedCsv = localStorage.getItem('uploadedToolsCsv');
+        const csvContent = savedCsv !== null
+          ? savedCsv
+          : await loadCSVFromPossibleLocations();
+        setCsvLoaded(true);
+        // Store the raw CSV data for later reuse
+        setRawCsvData(csvContent);
+
+        // Memoization: localStorage cache
+        const cacheKey = 'toolsProcessingCache';
+        let processedTools: Tool[] | undefined;
+        const cacheRaw = localStorage.getItem(cacheKey);
+        if (cacheRaw) {
+          try {
+            const cache = JSON.parse(cacheRaw);
+            if (
+              cache.csvContent === csvContent &&
+              cache.similarityThreshold === similarityThreshold &&
+              JSON.stringify(cache.featureWeights) === JSON.stringify(featureWeights)
+            ) {
+              processedTools = cache.tools;
+            }
+          } catch {}
+        }
+        if (!processedTools) {
+          processedTools = await runProcessInWorker(
+            csvContent,
+            similarityThreshold,
+            featureWeights
+          );
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({ csvContent, similarityThreshold, featureWeights, tools: processedTools })
+          );
+        }
+
+        // If we have no processed tools, fall back to default
+        if (!processedTools || processedTools.length === 0) {
+          console.warn('No tools were processed from CSV, using default tools');
+          setTools(defaultTools);
+        } else {
+          setTools(processedTools);
+          setSelectedCategories([]); // Reset selected categories
+
+          // Extract other filter options from the raw CSV data
+          if (rawCsvData) {
+            try {
+              const parsedData = Papa.parse(rawCsvData, { header: true }).data as any[];
+
+              // Extract unique values for each filter type
+              const functions = Array.from(new Set(parsedData
+                .map(row => row['Primary Function'])
+                .filter(Boolean)
+                .flatMap(val => val.split(';').map((v: string) => v.trim()))
+              ));
+
+              const environments = Array.from(new Set(parsedData
+                .map(row => row['Environment Type'])
+                .filter(Boolean)
+                .flatMap(val => val.split(';').map((v: string) => v.trim()))
+              ));
+
+              const dataSources = Array.from(new Set(parsedData
+                .map(row => row['Data Sources'])
+                .filter(Boolean)
+                .flatMap(val => val.split(';').map((v: string) => v.trim()))
+              ));
+
+              const users = Array.from(new Set(parsedData
+                .map(row => row['Target User/Client'])
+                .filter(Boolean)
+                .flatMap(val => val.split(';').map((v: string) => v.trim()))
+              ));
+
+              // Set the available filter options
+              setAvailableFunctions(functions);
+              setAvailableEnvironments(environments);
+              setAvailableDataSources(dataSources);
+              setAvailableUsers(users);
+
+              // Reset selected filters
+              setSelectedFunctions([]);
+              setSelectedEnvironments([]);
+              setSelectedDataSources([]);
+              setSelectedUsers([]);
+            } catch (error) {
+              console.error('Error parsing filter options:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading CSV data:', error);
+        // Fall back to default tools if there's an error
+        setTools(defaultTools);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initialDataLoad();
+  }, []); // Empty dependency array means this only runs once on mount
+
+  // Handle changes in weights or threshold using stored CSV data
+  const handleWeightsChange = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      if (!csvLoaded || !rawCsvData) return;
+
+      // Memoization: localStorage cache
+      const cacheKey = 'toolsProcessingCache';
+      let updatedTools: Tool[] | undefined;
+      const cacheRaw = localStorage.getItem(cacheKey);
+      if (cacheRaw) {
+        try {
+          const cache = JSON.parse(cacheRaw);
+          if (
+            cache.csvContent === rawCsvData &&
+            cache.similarityThreshold === similarityThreshold &&
+            JSON.stringify(cache.featureWeights) === JSON.stringify(featureWeights)
+          ) {
+            updatedTools = cache.tools;
+          }
+        } catch {}
+      }
+      if (!updatedTools) {
+        updatedTools = await runProcessInWorker(
+          rawCsvData,
+          similarityThreshold,
+          featureWeights
+        );
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({ csvContent: rawCsvData, similarityThreshold, featureWeights, tools: updatedTools })
+        );
+      }
+      setTools(updatedTools!);
+    } catch (error) {
+      console.error('Error updating weights:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [csvLoaded, rawCsvData, similarityThreshold, featureWeights]);
+
+  // Run weight updates when feature weights change
+  useEffect(() => {
+    if (csvLoaded && rawCsvData) {
+      // Fixed similarity threshold at 0.6
+      setSimilarityThreshold(0.6); 
+      handleWeightsChange();
+    }
+  }, [csvLoaded, rawCsvData, featureWeights, handleWeightsChange]);
+
+  // Similarity threshold is now fixed at 0.6
+
+  // Handle feature weight changes
+  const handleFeatureWeightChange = useCallback((feature: string, newValue: number | number[]) => {
+    const value = newValue as number;
+    switch (feature) {
+      case 'Primary Function':
+        setPrimaryFunctionWeight(value);
+        break;
+      case 'Data Sources':
+        setDataSourcesWeight(value);
+        break;
+      case 'Target User/Client':
+        setTargetUserWeight(value);
+        break;
+      case 'Environment Type':
+        setEnvironmentTypeWeight(value);
+        break;
+    }
+  }, []);
+
+  // Generic filter toggle handler
+  const handleFilterToggle = (
+    value: string,
+    _selectedValues: string[], // Prefix with underscore to indicate it's not used
+    setSelectedValues: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
+    setSelectedValues(prev => {
+      if (prev.includes(value)) {
+        return prev.filter(v => v !== value);
+      } else {
+        return [...prev, value];
+      }
+    });
+  };
+
+  // Specific handlers for each filter type
+  const handleCategoryToggle = (category: string) => {
+    handleFilterToggle(category, selectedCategories, setSelectedCategories);
+  };
+
+  const handleFunctionToggle = (func: string) => {
+    handleFilterToggle(func, selectedFunctions, setSelectedFunctions);
+  };
+
+  const handleEnvironmentToggle = (env: string) => {
+    handleFilterToggle(env, selectedEnvironments, setSelectedEnvironments);
+  };
+
+  const handleDataSourceToggle = (source: string) => {
+    handleFilterToggle(source, selectedDataSources, setSelectedDataSources);
+  };
+
+  const handleUserToggle = (user: string) => {
+    handleFilterToggle(user, selectedUsers, setSelectedUsers);
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSelectedCategories([]);
+    setSelectedFunctions([]);
+    setSelectedEnvironments([]);
+    setSelectedDataSources([]);
+    setSelectedUsers([]);
+    setSearchTerm('');
+    setIsNaturalLanguageSearch(false);
+    setNaturalLanguageResults([]);
+  };
+
+  // Handle CSV file upload to replace the dataset
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsLoading(true);
+    try {
+      const text = await file.text();
+      localStorage.setItem('uploadedToolsCsv', text);
+      setRawCsvData(text);
+      setCsvLoaded(true);
+      const processed = await runProcessInWorker(text, similarityThreshold, featureWeights);
+      setTools(processed);
+      // Parse CSV for filter options
+      const parsedData = Papa.parse(text, { header: true }).data as any[];
+      const funcs = Array.from(new Set(parsedData
+        .map(row => row['Primary Function'])
+        .filter(Boolean)
+        .flatMap((val: string) => val.split(';').map(v => v.trim()))));
+      const envs = Array.from(new Set(parsedData
+        .map(row => row['Environment Type'])
+        .filter(Boolean)
+        .flatMap((val: string) => val.split(';').map(v => v.trim()))));
+      const srcs = Array.from(new Set(parsedData
+        .map(row => row['Data Sources'])
+        .filter(Boolean)
+        .flatMap((val: string) => val.split(';').map(v => v.trim()))));
+      const usrs = Array.from(new Set(parsedData
+        .map(row => row['Target User/Client'])
+        .filter(Boolean)
+        .flatMap((val: string) => val.split(';').map(v => v.trim()))));
+      setAvailableFunctions(funcs);
+      setAvailableEnvironments(envs);
+      setAvailableDataSources(srcs);
+      setAvailableUsers(usrs);
+      clearAllFilters();
+    } catch (err) {
+      console.error('Error uploading CSV', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Reset to default CSV (clears upload)
+  const handleResetCsv = () => {
+    localStorage.removeItem('uploadedToolsCsv');
+    window.location.reload();
+  };
+
+  // Handle search focus events
+  const handleSearchFocus = () => {
+    setSearchFocused(true);
+  };
+
+  // Handle key down events for search
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchTerm.trim()) {
+        handleNaturalLanguageSearch(searchTerm);
+        setSearchFocused(false); // hide overlay when showing results
+        setShowSearchResults(true);
+      }
+    } else if (e.key === 'Escape') {
+      setSearchFocused(false);
+      setShowSearchResults(false);
+    }
+  };
+
+  // Handle selecting a tool from search results
+  const handleToolSelect = (tool: Tool) => {
+    setSelectedTool(tool);
+    setShowSearchResults(false);
+    setSearchFocused(false);
+  };
+
+  // Close tool details and return to search
+  const handleCloseToolDetails = () => {
+    setSelectedTool(null);
+  };
+
+  // Handle natural language search
+  const handleNaturalLanguageSearch = async (query: string) => {
+    if (!query.trim()) return;
+    
+    setIsLoading(true);
+    setIsNaturalLanguageSearch(true);
+    setShowSearchResults(true);
+    
+    try {
+      const response = await fetch('http://localhost:3001/api/natural-language-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query,
+          tools
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process natural language search');
+      }
+      
+      setNaturalLanguageResults(data.relevantTools);
+    } catch (error) {
+      console.error('Error with natural language search:', error);
+      setIsNaturalLanguageSearch(false);
+      // Fall back to keyword search if API call fails
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Filter tools based on all criteria
+  const filteredTools = useMemo(() => {
+    // Start with all tools
+    let filtered = tools;
+    
+    // If we have natural language search results, prioritize those
+    if (isNaturalLanguageSearch && naturalLanguageResults.length > 0 && searchTerm.trim()) {
+      // We still need to apply other filters to the natural language results
+      filtered = naturalLanguageResults;
+    }
+    // Otherwise apply standard keyword search filter
+    else if (searchTerm.trim()) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(tool =>
+        tool.name.toLowerCase().includes(lowerSearchTerm) ||
+        tool.category.toLowerCase().includes(lowerSearchTerm) ||
+        (tool.primaryFunction && tool.primaryFunction.toLowerCase().includes(lowerSearchTerm)) ||
+        (tool.dataSources && tool.dataSources.toLowerCase().includes(lowerSearchTerm)) ||
+        (tool.targetUser && tool.targetUser.toLowerCase().includes(lowerSearchTerm)) ||
+        (tool.environmentType && tool.environmentType.toLowerCase().includes(lowerSearchTerm))
+      );
+    }
+
+    // Get the raw CSV data for more detailed filtering
+    if (rawCsvData) {
+      try {
+        const parsedData = Papa.parse(rawCsvData, { header: true }).data as any[];
+        const toolMap = new Map(parsedData.map(row => [
+          row['Tool Name']?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+          row
+        ]));
+
+        // Apply high-level category filter on CSV Primary Function
+        if (selectedCategories.length > 0 && selectedCategories.length < availableCategories.length) {
+          // Only apply filtering if some but not all categories are selected
+          const normalizedCats = selectedCategories.map(c => c.toLowerCase());
+          filtered = filtered.filter(tool => {
+            const csvTool = toolMap.get(tool.id);
+            if (!csvTool) return false;
+
+            // Get all relevant fields for categorization
+            const primaryFunction = (csvTool['Primary Function'] || '').toLowerCase();
+            const dataSources = (csvTool['Data Sources'] || '').toLowerCase();
+            const description = (csvTool['Description'] || '').toLowerCase();
+            const toolName = (csvTool['Tool Name'] || '').toLowerCase();
+            const targetUser = (csvTool['Target User/Client'] || '').toLowerCase();
+            const environmentType = (csvTool['Environment Type'] || '').toLowerCase();
+
+            // Combine all text for more comprehensive matching
+            const allText = `${primaryFunction} ${dataSources} ${description} ${toolName} ${targetUser} ${environmentType}`;
+
+            // Check if the tool belongs to any of the selected categories
+            let matchesCategory = false;
+
+            if (normalizedCats.includes('sensors')) {
+              matchesCategory = matchesCategory ||
+                // Standard sensors and hardware
+                allText.includes('sensor') ||
+                allText.includes('camera') ||
+                allText.includes('drone') ||
+                allText.includes('satellite') ||
+                allText.includes('hardware') ||
+                allText.includes('field device') ||
+                allText.includes('edna') ||
+                allText.includes('monitoring') ||
+                allText.includes('acoustic') ||
+                // Data sources from sensors
+                dataSources.includes('satellite imagery') ||
+                dataSources.includes('wildlife cameras') ||
+                dataSources.includes('acoustic sensors') ||
+                primaryFunction.includes('monitoring') ||
+                // Experimental hardware and citizen science (from Emerging Tech)
+                allText.includes('prototype') && allText.includes('hardware') ||
+                allText.includes('citizen science') && allText.includes('data collection') ||
+                allText.includes('vr') && allText.includes('field') ||
+                allText.includes('ar') && allText.includes('field');
+            }
+
+            if (normalizedCats.includes('data pipelines')) {
+              // Focus on data connection, transformation, and integration
+              matchesCategory = matchesCategory ||
+                (primaryFunction.includes('data') && !primaryFunction.includes('data provision')) ||
+                allText.includes('integration') ||
+                allText.includes('pipeline') ||
+                allText.includes('etl') ||
+                allText.includes('excel') ||
+                allText.includes('api') ||
+                allText.includes('collection') ||
+                allText.includes('accounting') ||
+                primaryFunction.includes('footprinting') ||
+                // Include private/internal databases but not public repositories
+                (allText.includes('database') && !allText.includes('open') && !toolName.includes('gbif')) ||
+                (allText.includes('repository') && !allText.includes('open access'));
+            }
+
+            if (normalizedCats.includes('analysis')) {
+              matchesCategory = matchesCategory ||
+                // Core analysis functions
+                primaryFunction.includes('analysis') ||
+                primaryFunction.includes('assessment') ||
+                primaryFunction.includes('modeling') ||
+                allText.includes('analytics') ||
+                allText.includes('recognition') ||
+                allText.includes('model') ||
+                allText.includes('statistical') ||
+                // AI and machine learning (previously in Emerging Tech)
+                allText.includes('machine learning') ||
+                allText.includes('ml') ||
+                allText.includes('ai') ||
+                allText.includes('artificial intelligence') ||
+                toolName.includes('ai') ||
+                // Assessment types
+                primaryFunction.includes('risk assessment') ||
+                primaryFunction.includes('impact assessment') ||
+                primaryFunction.includes('status assessment') ||
+                primaryFunction.includes('footprinting') ||
+                // Advanced planning (previously in Emerging Tech)
+                primaryFunction.includes('scenario planning') ||
+                primaryFunction.includes('prioritization');
+            }
+
+            if (normalizedCats.includes('visualization')) {
+              // Focus on visual presentation of data and reporting frameworks
+              matchesCategory = matchesCategory ||
+                // Visual elements
+                allText.includes('visualization') ||
+                allText.includes('dashboard') ||
+                allText.includes('chart') ||
+                allText.includes('map') ||
+                allText.includes('display') ||
+                // Reporting frameworks and outputs
+                primaryFunction.includes('reporting') ||
+                primaryFunction.includes('reporting framework') ||
+                (primaryFunction.includes('framework') && allText.includes('report')) ||
+                // Benchmarking and comparative tools
+                primaryFunction.includes('benchmarking') ||
+                primaryFunction.includes('rating') ||
+                primaryFunction.includes('valuation') ||
+                // KPIs and metrics
+                allText.includes('kpi') ||
+                (allText.includes('report') &&
+                  (allText.includes('generator') ||
+                   allText.includes('template') ||
+                   allText.includes('dashboard')));
+            }
+
+            if (normalizedCats.includes('open data')) {
+              // Focus specifically on open, public data repositories and research data
+              matchesCategory = matchesCategory ||
+                allText.includes('open data') ||
+                allText.includes('gbif') ||
+                allText.includes('obis') ||
+                (allText.includes('research') && (allText.includes('data') || allText.includes('database'))) ||
+                dataSources.includes('open') ||
+                description.includes('open access') ||
+                toolName.includes('gbif') ||
+                toolName.includes('data platform') ||
+                toolName.includes('data repository') ||
+                primaryFunction.includes('data provision') ||
+                primaryFunction.includes('knowledge database') ||
+                primaryFunction.includes('knowledge sharing') ||
+                // Specifically target public/open databases and repositories
+                (allText.includes('database') && (allText.includes('open') || description.includes('public'))) ||
+                (allText.includes('repository') && (allText.includes('open access') || description.includes('public')));
+            }
+
+            // Note: We've removed the 'Emerging Tech' category
+            // Tools that would have been in that category are now distributed to other categories
+            // through their existing matching logic
+
+            return matchesCategory;
+          });
+        }
+
+        // Apply primary function filter
+        if (selectedFunctions.length > 0) {
+          filtered = filtered.filter(tool => {
+            const csvTool = toolMap.get(tool.id);
+            if (!csvTool) return false;
+
+            const functions = csvTool['Primary Function']?.split(';').map((f: string) => f.trim()) || [];
+            return selectedFunctions.some(f => functions.includes(f));
+          });
+        }
+
+        // Apply environment type filter
+        if (selectedEnvironments.length > 0) {
+          filtered = filtered.filter(tool => {
+            const csvTool = toolMap.get(tool.id);
+            if (!csvTool) return false;
+
+            const environments = csvTool['Environment Type']?.split(';').map((e: string) => e.trim()) || [];
+            return selectedEnvironments.some(e => environments.includes(e));
+          });
+        }
+
+        // Apply data sources filter
+        if (selectedDataSources.length > 0) {
+          filtered = filtered.filter(tool => {
+            const csvTool = toolMap.get(tool.id);
+            if (!csvTool) return false;
+
+            const sources = csvTool['Data Sources']?.split(';').map((s: string) => s.trim()) || [];
+            return selectedDataSources.some(s => sources.includes(s));
+          });
+        }
+
+        // Apply target user filter
+        if (selectedUsers.length > 0) {
+          filtered = filtered.filter(tool => {
+            const csvTool = toolMap.get(tool.id);
+            if (!csvTool) return false;
+
+            const users = csvTool['Target User/Client']?.split(';').map((u: string) => u.trim()) || [];
+            return selectedUsers.some(u => users.includes(u));
+          });
+        }
+      } catch (error) {
+        console.error('Error applying detailed filters:', error);
+      }
+    }
+
+    return filtered;
+  }, [tools, searchTerm, selectedCategories, selectedFunctions, selectedEnvironments,
+      selectedDataSources, selectedUsers, rawCsvData, isNaturalLanguageSearch, naturalLanguageResults]);
+
+  return (
+    <div className="bg-background text-foreground">
+      <div className="App">
+        <div className="py-2 px-4 min-h-[48px] bg-gradient-to-r from-[#175732] to-[#5A9E74] text-white border-b border-black/10 relative z-10">
+          <div className="mx-auto w-full max-w-lg px-4 md:px-6">
+            <div className="flex items-center justify-between">
+              {/* GitHub link bottom left */}
+              <div className="fixed bottom-4 left-4 z-[1000]">
+  <a
+    href="https://github.com/Jaystarter"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{ textDecoration: 'none' }}
+  >
+    <div className="flex items-center gap-2">
+      <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: 'black', opacity: 0.7 }}>
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.12 0 0 .67-.21 2.2.82A7.68 7.68 0 0 1 8 4.84c.68.003 1.36.092 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.11.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+      <span style={{ color: 'black', fontSize: 13, opacity: 0.7 }}>GitHub</span>
+    </div>
+  </a>
+</div>
+              <Typography variant="h6" component="h1">
+  TNFD Tools Relational Map
+</Typography>
+
+              <div className="flex items-center flex-grow max-w-[300px] ml-2">
+                {/* ShadCN/Tailwind search bar replacement for removed MUI TextField */}
+                <div className="relative flex w-full items-center bg-white/20 rounded-md px-2 py-1 shadow-sm">
+                  <button
+                    type="button"
+                    className="mr-2 text-gray-700 hover:text-green-700 focus:outline-none"
+                    onClick={() => handleNaturalLanguageSearch(searchTerm)}
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
+                  <Input
+                    className="flex-1 bg-transparent border-none text-white placeholder:text-gray-200 focus:ring-0 focus:outline-none"
+                    placeholder="Search for tools or categories..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setIsNaturalLanguageSearch(false);
+                    }}
+                    onFocus={handleSearchFocus}
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      className="ml-2 text-gray-300 hover:text-red-500 focus:outline-none"
+                      aria-label="clear search"
+                      onClick={() => {
+                        setSearchTerm('');
+                        setIsNaturalLanguageSearch(false);
+                        setNaturalLanguageResults([]);
+                      }}
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+                {searchTerm && (
+                  <Badge className="text-xs px-2 py-0.5 rounded">
+                    {isNaturalLanguageSearch ? `AI: ${filteredTools.length} matches` : `${filteredTools.length} found`}
+                  </Badge>
+                )}
+                <Button
+  variant="outline"
+  className="ml-2 text-white border border-white/70"
+  asChild
+>
+  <label className="cursor-pointer">
+    Upload CSV
+    <input type="file" accept=".csv" hidden onChange={handleCsvUpload} />
+  </label>
+</Button>
+                <Button
+  variant="outline"
+  className="ml-1 text-white border border-white/70"
+  onClick={handleResetCsv}
+>
+  Reset CSV
+</Button>
+            </div>
+  className="text-xs px-2 py-0.5 rounded flex items-center gap-1"
+  variant="outline"
+  onClick={() => setFilterPanelVisible(!filterPanelVisible)}
+>
+  {filterPanelVisible ? <ExpandLessIcon className="w-4 h-4" /> : <ExpandMoreIcon className="w-4 h-4" />}
+  {filterPanelVisible ? 'Hide Filters' : 'Show Filters'}
+</Button>
+            
+            <Button
+  className="text-xs px-2 py-0.5 rounded flex items-center gap-1"
+  variant="outline"
+  onClick={() => setControlsExpanded(!controlsExpanded)}
+>
+  {controlsExpanded ? <ExpandLessIcon className="w-4 h-4" /> : <ExpandMoreIcon className="w-4 h-4" />}
+  {controlsExpanded ? 'Hide Controls' : 'Show Controls'}
+</Button>
+          </div>
+          
+          {/* Filters section */}
+          <Collapse in={filterPanelVisible}>
+            <div className="mb-2 rounded-2xl p-6 flex flex-wrap items-center justify-between gap-1 relative z-2 bg-card text-card-foreground shadow">
+  <div className="flex items-center">
+    <Typography variant="body1" className="font-semibold">
+      Filters
+    </Typography>
+              <Badge className="text-xs px-2 py-0.5 rounded">
+                {filteredTools.length} tools
+              </Badge>
+
+              {/* Show active filter count */}
+              {(selectedCategories.length > 0 || selectedFunctions.length > 0 ||
+                selectedEnvironments.length > 0 || selectedDataSources.length > 0 ||
+                selectedUsers.length > 0) && (
+                <Badge className="text-xs px-2 py-0.5 rounded" variant="outline" >
+                  {selectedCategories.length + selectedFunctions.length +
+                    selectedEnvironments.length + selectedDataSources.length +
+                    selectedUsers.length} active filters
+                </Badge>
+              )}
+            </div>
+
+            <div>
+  {/* Clear all filters button */}
+              {(selectedCategories.length > 0 || selectedFunctions.length > 0 ||
+                selectedEnvironments.length > 0 || selectedDataSources.length > 0 ||
+                selectedUsers.length > 0 || searchTerm) && (
+                <Button
+  className="text-xs px-2 py-0.5 rounded flex items-center gap-1 mr-1 text-red-600 border-red-600"
+  variant="outline"
+  onClick={clearAllFilters}
+>
+  <X className="w-4 h-4" />
+  Clear All
+</Button>
+              )}
+
+              {/* Expand/collapse filter panel */}
+              <Button
+  className="text-xs px-2 py-0.5 rounded flex items-center gap-1 text-primary"
+  onClick={() => setFiltersExpanded(!filtersExpanded)}
+>
+  {filtersExpanded ? 'Collapse Filters' : 'Expand Filters'}
+  {filtersExpanded ? <ExpandLessIcon className="w-4 h-4" /> : <ExpandMoreIcon className="w-4 h-4" />}
+</Button>
+            </div>
+          </div>
+
+          {/* Expanded filter panel */}
+          <Collapse in={filtersExpanded}>
+            <div className="mb-2 rounded-2xl p-8 flex flex-col gap-2 bg-card text-card-foreground shadow">
+              {/* Category filters */}
+              {/* TODO: Render category filter chips here */}
+              {/* Example: categories.map(category => (<CategoryChip ... />)) */}
+            </div>
+          </Collapse>
+
+          {/* Controls section */}
+          <Collapse in={controlsExpanded}>
+            <div className="controlsPaper mb-2 rounded-2xl p-6 flex flex-col gap-2 bg-card text-card-foreground shadow">
+              <div className="mb-1 flex items-center justify-between">
+                <div className="flex items-center">
+                  <Typography variant="h6" component="h2">
+                    What is important to you?
+                  </Typography>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="ml-1"
+                    onClick={() => setControlsExpanded(!controlsExpanded)}
+                    aria-label={controlsExpanded ? "Collapse controls" : "Expand controls"}
+                  >
+                    {controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  </Button>
+                </div>
+                <div className="flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="ml-1"
+                    onClick={() => setControlsExpanded(!controlsExpanded)}
+                    aria-label={controlsExpanded ? "Collapse controls" : "Expand controls"}
+                  >
+                    {controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  </Button>
+              <TooltipTrigger asChild>
+                <span className="ml-1 text-gray-400 cursor-pointer">
+                  <Info size={16} />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Controls how the intended audience affects tool relationships
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <div className="flex w-[225px] border-2 rounded" style={{ borderColor: colorPalette.darkGreen }}>
+          {[0.1, 0.2, 0.3, 0.4, 0.5].map((value, index) => {
+            const isActive = targetUserWeight >= value;
+            return (
+              <div
+                key={index}
+                onClick={() => handleFeatureWeightChange('Target User/Client', value)}
+                className={
+                  `flex justify-center items-center cursor-pointer relative`
+                  + ` ${isActive ? 'bg-green-100' : ''}`
+                  + ` hover:bg-green-200`
+                }
+                style={{
+                  width: '45px',
+                  height: '36px',
+                  borderRight: index < 4 ? `1px solid ${colorPalette.darkGreen}` : 'none',
+                  backgroundColor: isActive ? 'rgba(107, 144, 128, 0.1)' : 'transparent',
+                }}
+              >
+                {isActive && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      backgroundImage: 'linear-gradient(135deg, transparent 0%, transparent 40%, #6B9080 40%, #6B9080 60%, transparent 60%, transparent 100%)',
+                      backgroundSize: '8px 8px',
+                      opacity: 0.7
+                    }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  </Collapse>
+</div>
+</Collapse>
+
+<div>
+  {isLoading ? (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: controlsExpanded ? 'calc(100vh - 230px)' : 'calc(100vh - 180px)',
+        flexDirection: 'column'
+      }}
+    >
+      <div className="loading-indicator" />
+      <Typography variant="body2" className="text-muted-foreground">
+        Processing tool relationships...
+      </Typography>
+    </div>
+  ) : (
+    <div>
+      <div className="graph-container" style={{ height: controlsExpanded ? 'calc(100vh - 230px)' : 'calc(100vh - 180px)' }}>
+        <ForceGraphContainer
+          controlsExpanded={controlsExpanded}
+          toolsData={filteredTools}
+        />
+      </div>
+      {searchFocused && !showSearchResults && (
+        <div>
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '80%',
+              maxWidth: '800px',
+              zIndex: 1400,
+            }}
+          >
+            <input
+              type="text"
+              className="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-primary text-base bg-background"
+              placeholder="Describe what you're looking for..."
+              value={searchTerm}
+              onChange={e => {
+                setSearchTerm(e.target.value);
+                setIsNaturalLanguageSearch(false);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              autoFocus
+            />
+          </div>
+        </div>
+      )}
+      {(searchFocused || showSearchResults) && (
+        <div
+          className="fixed inset-0 bg-white/70 backdrop-blur z-[1100] transition-all duration-300"
+          onClick={() => {
+            if (!showSearchResults) {
+              setSearchFocused(false);
+            }
+          }}
+        />
+      )}
+      {showSearchResults && (
+        <div>
+          <div
+            className="fixed top-1/2 left-1/2 w-4/5 max-w-2xl bg-background rounded-2xl shadow-lg p-4 z-[1300] overflow-auto"
+            style={{ transform: 'translate(-50%, -50%)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Typography variant="h6">
+                {isNaturalLanguageSearch ? 'AI Search Results' : 'Search Results'}
+              </Typography>
+              <Button variant="ghost" size="icon" onClick={() => setShowSearchResults(false)}>
+                <X />
+              </Button>
+            </div>
+            {isLoading ? (
+              <div className="flex justify-center items-center p-8">
+                <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin inline-block" />
+              </div>
+            ) : filteredTools.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {filteredTools.map((tool) => (
+                  <li key={tool.id}>
+                    <button type="button" className="w-full text-left px-4 py-2 hover:bg-accent rounded transition-colors"
+                      onClick={() => handleToolSelect(tool)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <Typography variant="subtitle1" className="font-semibold">{tool.name}</Typography>
+                        <Badge className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colorPalette.mediumGreen, color: 'white', fontWeight: 500, fontSize: '0.9rem' }}>
+                          {tool.category}
+                        </Badge>
+                      </div>
+                      <div className="mt-1">
+                        {tool.primaryFunction && (
+                          <div className="flex items-center text-sm mb-1">
+                            <CategoryIcon className="w-4 h-4 mr-1 opacity-70" />
+                            <span>{tool.primaryFunction}</span>
+                          </div>
+                        )}
+                        {tool.dataSources && (
+                          <div>
+                            <span>{tool.dataSources}</span>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="p-4 text-center">
+                <Typography variant="body1">
+                  No tools match your search criteria
+                </Typography>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )}
+</div>
+
+{selectedTool !== null && (
+  <Dialog open={true} onOpenChange={open => { if (!open) handleCloseToolDetails(); }}>
+    <DialogContent className="max-w-2xl w-full">
+      <Card className="shadow-none border-none">
+        <CardContent>
+          <div className="flex justify-between items-start">
+            <Typography variant="h5" component="h2">
+              {selectedTool.name}
+            </Typography>
+            <Badge className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colorPalette.mediumGreen, color: 'white', fontWeight: 500, fontSize: '0.9rem' }}>
+              {selectedTool.category}
+            </Badge>
+          </div>
+          <Divider className="my-4" />
+          {selectedTool.primaryFunction && (
+            <div className="mb-2">
+              <Typography variant="subtitle1" className="text-muted-foreground" gutterBottom>
+                Primary Function
+              </Typography>
+              <Typography variant="body1">{selectedTool.primaryFunction}</Typography>
+            </div>
+          )}
+          {selectedTool.dataSources && (
+            <div className="mb-2">
+              <Typography variant="subtitle1" className="text-muted-foreground" gutterBottom>
+                Data Sources
+              </Typography>
+              <Typography variant="body1">{selectedTool.dataSources}</Typography>
+            </div>
+          )}
+          {selectedTool.targetUser && (
+            <div className="mb-2">
+              <Typography variant="subtitle1" className="text-muted-foreground" gutterBottom>
+                Target Users
+              </Typography>
+              <Typography variant="body1">{selectedTool.targetUser}</Typography>
+            </div>
+          )}
+          {selectedTool.environmentType && (
+            <div className="mb-2">
+              <Typography variant="subtitle1" className="text-muted-foreground" gutterBottom>
+                Environment Type
+              </Typography>
+              <Typography variant="body1">{selectedTool.environmentType}</Typography>
+            </div>
+          )}
+        </CardContent>
+        <CardFooter className="flex justify-end">
+          <Button onClick={handleCloseToolDetails}>
+            Close
+          </Button>
+        </CardFooter>
+      </Card>
+    </DialogContent>
+  </Dialog>
+      </li>
+    ))}
+  </ul>
+) : (
+  <div className="p-4 text-center">
+    <Typography variant="body1">
+      No tools match your search criteria
+    </Typography>
+  </div>
+)}
+
+            
+            {/* Tool Details Modal */}
+            <Dialog open={selectedTool !== null} onOpenChange={open => { if (!open) handleCloseToolDetails(); }}>
+              <DialogContent className="max-w-2xl w-full">
+                {selectedTool && (
+                  <Card className="shadow-none border-none">
+                    <CardContent>
+                      <div className="flex justify-between items-start">
+                        <Typography variant="h5" component="h2">
+                          {selectedTool.name}
+                        </Typography>
+                        <Badge className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colorPalette.mediumGreen, color: 'white', fontWeight: 500, fontSize: '0.9rem' }}>
+                          {selectedTool.category}
+                        </Badge>
+                      </div>
+                      <Divider className="my-4" />
+                      {selectedTool.primaryFunction && (
+                        <div className="mb-2">
+                          <Typography variant="subtitle1" className="text-muted-foreground" gutterBottom>
+                            Primary Function
+                          </Typography>
+                          <Typography variant="body1">{selectedTool.primaryFunction}</Typography>
+                        </div>
+                      )}
+                      {selectedTool.dataSources && (
+                        <div className="mb-2">
+                          <Typography variant="subtitle1" className="text-muted-foreground" gutterBottom>
+                            Data Sources
+                          </Typography>
+                          <Typography variant="body1">{selectedTool.dataSources}</Typography>
+                        </div>
+                      )}
+                      {selectedTool.targetUser && (
+                        <div className="mb-2">
+                          <Typography variant="subtitle1" className="text-muted-foreground" gutterBottom>
+                            Target Users
+                          </Typography>
+                          <Typography variant="body1">{selectedTool.targetUser}</Typography>
+                        </div>
+                      )}
+                      {selectedTool.environmentType && (
+                        <div className="mb-2">
+                          <Typography variant="subtitle1" className="text-muted-foreground" gutterBottom>
+                            Environment Type
+                          </Typography>
+                          <Typography variant="body1">{selectedTool.environmentType}</Typography>
+                        </div>
+                      )}
+                    </CardContent>
+                    <CardFooter className="flex justify-end">
+                      <Button onClick={handleCloseToolDetails}>
+                        Close
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                )}
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;

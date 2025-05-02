@@ -1,0 +1,11 @@
+# Task ID: 2
+# Title: Implement ShadCN Theming System for TNFD Branding
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Create a theming system using ShadCN and Tailwind that matches the current TNFD branding and supports dark/light modes.
+# Details:
+Define color variables in Tailwind config matching TNFD green theme. Create theme provider component using ShadCN's approach. Implement CSS variables for theme tokens. Set up dark mode support. Create a theme switching mechanism. Document the theming system for future component development.
+
+# Test Strategy:
+Compare rendered colors and styling against current MUI implementation. Test theme switching functionality. Verify that the theme correctly applies to ShadCN components.

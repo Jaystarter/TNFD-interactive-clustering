@@ -26,5 +26,11 @@ dist-ssr
 # Environment variables
 .env
 .env*
-functions/.env
-functions/.env*
+
+# Netlify Functions specific ignores
+netlify/functions/node_modules/
+netlify/functions/.env
+netlify/functions/.env*
+
+# Local Netlify folder
+.netlify

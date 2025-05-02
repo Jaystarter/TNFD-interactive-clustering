@@ -1,0 +1,11 @@
+# Task ID: 8
+# Title: Migrate Navigation Components
+# Status: done
+# Dependencies: 7
+# Priority: medium
+# Description: Replace MUI AppBar, Menu, MenuItem, and navigation-related components with ShadCN equivalents.
+# Details:
+Create navigation bar using ShadCN components or Tailwind utilities. Implement ShadCN DropdownMenu to replace Menu and MenuItem. Create breadcrumb component using ShadCN or custom implementation. Replace Navigation Drawer with ShadCN Sheet. Ensure mobile responsiveness of navigation elements.
+
+# Test Strategy:
+Test navigation flow throughout the application. Verify dropdown menu functionality. Test responsive behavior of navigation components. Ensure proper keyboard navigation and accessibility.

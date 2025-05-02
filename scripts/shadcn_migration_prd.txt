@@ -1,0 +1,90 @@
+# TNFD Tools Migration from Material UI to ShadCN UI
+
+## Project Overview
+The TNFD Tools Relational Map application currently uses Material UI for its component library. This project aims to migrate all Material UI components to ShadCN UI, a more customizable and lightweight component system built on Tailwind CSS. The migration will maintain all existing functionality while modernizing the component architecture and providing a more consistent design system.
+
+## Current State
+- The application uses Material UI components (@mui/material, @emotion/react, @emotion/styled)
+- Custom theme providers are implemented for TNFD branding with a green theme
+- Material UI components in use include:
+  - ThemeProvider for theming
+  - Paper components for card layouts
+  - Slider components with tooltips for controls
+  - Grid system for responsive layout
+  - TextField and IconButton for search
+  - Typography components for text styling
+  - Tooltip components for explanations
+
+## Requirements for Migration
+
+### 1. Setup and Configuration
+- Install and configure ShadCN UI and its dependencies (Tailwind CSS, etc.)
+- Set up a consistent theming approach with ShadCN to match TNFD branding
+- Create a migration strategy that allows for incremental component replacement
+- Ensure backward compatibility during the migration process
+
+### 2. Core Component Migration
+- Replace MUI ThemeProvider with ShadCN theming approach
+- Migrate layout components (Grid, Paper) to ShadCN/Tailwind equivalents
+- Replace Typography components with ShadCN typography or appropriate Tailwind classes
+- Convert MUI Container and Box components to appropriate ShadCN/Tailwind alternatives
+
+### 3. Form Controls Migration
+- Replace Slider components with ShadCN Slider components
+- Migrate TextField components to ShadCN Input components
+- Convert IconButton components to ShadCN Button with appropriate variants
+- Replace form-related components (Select, Checkbox, Radio) with ShadCN equivalents
+
+### 4. Interactive Component Migration
+- Replace Tooltip components with ShadCN Tooltip
+- Migrate Dialog/Modal components to ShadCN Dialog
+- Convert Drawer components to ShadCN Sheet
+- Replace MUI Tabs with ShadCN Tabs
+
+### 5. Navigation Component Migration
+- Replace AppBar/Toolbar with ShadCN navigation pattern
+- Migrate Menu and MenuItem to ShadCN DropdownMenu
+- Convert Breadcrumbs to ShadCN equivalent or custom implementation
+- Replace Navigation Drawer with ShadCN Sheet or custom navigation
+
+### 6. Data Display Migration
+- Migrate Table components to ShadCN Table
+- Replace Card, CardContent, CardHeader with ShadCN Card components
+- Convert List and ListItem to ShadCN equivalents
+- Migrate Chip components to ShadCN Badge
+
+### 7. Feedback Component Migration
+- Replace Snackbar/Alert with ShadCN Toast
+- Migrate Progress indicators to ShadCN Progress
+- Convert Backdrop and CircularProgress to ShadCN equivalents or custom implementations
+
+### 8. Custom Component Adaptation
+- Refactor any custom components that extend MUI components
+- Adapt specialized visualization components to work with ShadCN
+- Create custom components where ShadCN doesn't provide direct equivalents
+
+### 9. Testing and Quality Assurance
+- Implement visual regression testing to ensure UI consistency
+- Perform functional testing of all migrated components
+- Ensure accessibility standards are maintained or improved
+- Verify responsiveness across different screen sizes
+
+### 10. Performance Optimization
+- Measure and compare bundle sizes before and after migration
+- Optimize component loading and rendering
+- Address any performance regressions introduced during migration
+
+## Technical Constraints
+- The migration should be performed incrementally to minimize disruption
+- The application must remain functional throughout the migration process
+- The TNFD branding and color scheme must be preserved
+- Accessibility standards must be maintained or improved
+- The application should maintain or improve current performance
+
+## Success Criteria
+- All Material UI dependencies are removed from the project
+- All components are successfully migrated to ShadCN or appropriate alternatives
+- The application maintains visual consistency with the original design
+- No regression in functionality or user experience
+- Improved bundle size and performance metrics
+- Cleaner, more maintainable component architecture

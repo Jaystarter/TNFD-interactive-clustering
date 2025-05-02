@@ -1,0 +1,14 @@
+# netlify.toml
+[build]
+  # Assuming your frontend build command is 'npm run build'
+  # and the output directory is 'dist'
+  command = "npm run build"
+  publish = "dist"
+  # Tell Netlify where the functions are
+  functions = "netlify/functions"
+
+[[redirects]]
+  # Route requests from /api/* to the corresponding function
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200 # Rewrite status

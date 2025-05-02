@@ -1,5 +1,4 @@
 // netlify/functions/api.js
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -87,10 +86,17 @@ Return ONLY the names of the top 5 most relevant tools that match the query as a
 
 If fewer than 5 tools are relevant, return only those that are relevant. Ensure the output is a valid JSON array of strings.`;
 
+    console.log(`[${new Date().toISOString()}] Processing /natural-language-search for query:`, query ? query.substring(0, 50) + '...' : 'undefined');
+
     // Generate content with Gemini
+    console.log(`[${new Date().toISOString()}] Calling Gemini API...`);
+    const startTime = Date.now();
     const result = await model.generateContent(prompt);
+    const endTime = Date.now();
+    console.log(`[${new Date().toISOString()}] Gemini API call finished. Duration: ${endTime - startTime}ms`);
     const response = await result.response;
     const responseText = await response.text();
+    console.log(`[${new Date().toISOString()}] Received Gemini response text (first 100 chars):`, responseText.substring(0, 100));
 
     // Parse the response text to extract the JSON array
     let relevantToolNames = [];
@@ -105,28 +111,34 @@ If fewer than 5 tools are relevant, return only those that are relevant. Ensure 
       }
 
       if (jsonString) {
+          console.log(`[${new Date().toISOString()}] Parsing JSON string from regex match...`);
           relevantToolNames = JSON.parse(jsonString);
+          console.log(`[${new Date().toISOString()}] Parsed relevant tool names:`, relevantToolNames);
       } else {
            // Fallback: attempt to parse the whole text if no clear JSON found
-           // Try parsing the whole string, hoping it's just the array
+           console.log(`[${new Date().toISOString()}] No JSON block/array found via regex, attempting direct parse...`);
            try {
              relevantToolNames = JSON.parse(responseText);
+             console.log(`[${new Date().toISOString()}] Direct parse successful:`, relevantToolNames);
            } catch (parseError) {
-             console.error('Error parsing Gemini response:', parseError);
-             console.error('Original Gemini Response Text:', responseText); // Log the raw response on parse failure
+             console.error(`[${new Date().toISOString()}] Error parsing Gemini response (direct attempt):`, parseError);
+             console.error(`[${new Date().toISOString()}] Original Gemini Response Text:`, responseText);
+             console.log(`[${new Date().toISOString()}] Sending 500 response due to direct parse error.`);
              return res.status(500).json({ error: 'Failed to parse AI response', details: parseError.message, rawResponse: responseText });
            }
       }
 
       if (!Array.isArray(relevantToolNames)) {
+        console.error(`[${new Date().toISOString()}] Parsed response is not an array. Value:`, relevantToolNames);
         throw new Error('Parsed response is not an array');
       }
       // Ensure elements are strings
       relevantToolNames = relevantToolNames.map(name => String(name));
 
     } catch (parseError) {
-      console.error('Error parsing Gemini response:', parseError);
-      console.error('Original Gemini Response Text:', responseText); // Log the raw response on parse failure
+      console.error(`[${new Date().toISOString()}] Error parsing Gemini response (outer catch):`, parseError);
+      console.error(`[${new Date().toISOString()}] Original Gemini Response Text:`, responseText);
+      console.log(`[${new Date().toISOString()}] Sending 500 response due to outer parse error.`);
       return res.status(500).json({ error: 'Failed to parse AI response', details: parseError.message, rawResponse: responseText });
     }
 
@@ -137,22 +149,25 @@ If fewer than 5 tools are relevant, return only those that are relevant. Ensure 
         name.toLowerCase().includes(tool.name.toLowerCase())
       )
     );
+    console.log(`[${new Date().toISOString()}] Found ${relevantToolsData.length} matching tools from names.`);
 
+    console.log(`[${new Date().toISOString()}] Sending 200 response with relevant tools.`);
     res.json({ relevantTools: relevantToolsData });
 
   } catch (error) {
     // Log the specific error encountered during the request processing
-    console.error('!!! Error processing /natural-language-search request:', error);
+    console.error(`[${new Date().toISOString()}] !!! Error processing /natural-language-search request (main catch):`, error);
     // Ensure a valid JSON response is sent even on error
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    res.status(500).json({ 
-      error: 'Failed to process natural language search.', 
-      details: errorMessage 
-      // Avoid sending the full error object directly in the response 
-      // as it might contain sensitive info or not be serializable.
+    console.log(`[${new Date().toISOString()}] Sending 500 response due to main catch block.`);
+    res.status(500).json({
+      error: 'Failed to process natural language search.',
+      details: errorMessage
     });
   }
 });
 
-// Export the serverless handler
-module.exports.handler = serverless(app);
+// Configure serverless-http to strip the function base path so Express routes match correctly.
+module.exports.handler = serverless(app, {
+  basePath: '/.netlify/functions/api'
+});

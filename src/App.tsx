@@ -128,6 +128,29 @@ const loadCSVFromPossibleLocations = async (): Promise<string> => {
   throw new Error('Could not load CSV file from any location');
 };
 
+// Remote processing via Netlify Function
+const processViaFunction = async (
+  csvContent: string,
+  similarityThreshold: number,
+  featureWeights: FeatureWeights
+): Promise<Tool[]> => {
+  try {
+    const response = await fetch('/.netlify/functions/process-tools', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csvContent, similarityThreshold, featureWeights })
+    });
+    if (!response.ok) {
+      throw new Error(`Function error: ${await response.text()}`);
+    }
+    const data = await response.json();
+    return data.tools as Tool[];
+  } catch (e) {
+    console.warn('Remote processing failed, falling back to worker.', e);
+    return runProcessInWorker(csvContent, similarityThreshold, featureWeights);
+  }
+};
+
 // Web Worker runner for heavy processing
 const runProcessInWorker = (
   csvContent: string,
@@ -234,7 +257,7 @@ function App() {
           } catch {}
         }
         if (!processedTools) {
-          processedTools = await runProcessInWorker(
+          processedTools = await processViaFunction(
             csvContent,
             similarityThreshold,
             featureWeights
@@ -335,7 +358,7 @@ function App() {
         } catch {}
       }
       if (!updatedTools) {
-        updatedTools = await runProcessInWorker(
+        updatedTools = await processViaFunction(
           rawCsvData,
           similarityThreshold,
           featureWeights
@@ -422,7 +445,7 @@ function App() {
       localStorage.setItem('uploadedToolsCsv', text);
       setRawCsvData(text);
       setCsvLoaded(true);
-      const processed = await runProcessInWorker(text, similarityThreshold, featureWeights);
+      const processed = await processViaFunction(text, similarityThreshold, featureWeights);
       setTools(processed);
       // Parse CSV for filter options
       const parsedData = Papa.parse(text, { header: true }).data as any[];
@@ -545,6 +568,8 @@ function App() {
     if (rawCsvData) {
       try {
         const parsedData = Papa.parse(rawCsvData, { header: true }).data as any[];
+
+        // Extract unique values for each filter type
         const toolMap = new Map(parsedData.map(row => [
           row['Tool Name']?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
           row

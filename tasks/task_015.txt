@@ -1,11 +1,57 @@
 # Task ID: 15
-# Title: Conduct Integration Testing and Refinement
-# Status: pending
-# Dependencies: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+# Title: Offload CSV Processing to Netlify Serverless Function
+# Status: in-progress
+# Dependencies: 14
 # Priority: high
-# Description: Perform comprehensive testing of all features and refine based on feedback
+# Description: Move heavy CSV parsing, similarity calculation, and force-layout processing from the client to a Netlify serverless function to improve client-side performance.
 # Details:
-Create test scenarios that cover all implemented features and their interactions. Test the application with real-world data and use cases. Gather feedback from representative users. Identify and fix any usability issues or bugs. Optimize performance bottlenecks discovered during testing. Ensure all success criteria from the PRD are met. Create a final validation checklist to verify all requirements have been implemented.
+This task involves creating a serverless architecture to handle computationally intensive operations:
+
+1. **Create Shared Module**: Refactor the existing worker logic into a shared module that can be used by both client and serverless function. Extract the CSV parsing, similarity calculation, and force-layout algorithms into a reusable module structure.
+
+2. **Implement Serverless Function**: Create a new `process-tools` Netlify function that accepts raw CSV data, processes it using the shared module, and returns processed nodes ready for visualization.
+
+3. **Implement Caching Mechanism**: Add a caching layer that stores processed results based on a hash of the input data. When the function receives a request, it should first check if results for the given hash already exist before performing calculations.
+
+4. **Update Frontend**: Modify the client-side code to call the serverless function instead of performing processing locally. The client should:
+   - Generate a hash of the input data
+   - Send the data to the serverless function
+   - Display a loading indicator while waiting for the response
+   - Render the visualization using the returned processed nodes
+
+5. **Update Dependencies and Documentation**: Update project dependencies as needed and document the new architecture, including:
+   - How the serverless function works
+   - The caching mechanism
+   - How to test and deploy the function
+   - Performance considerations and limitations
+
+The implementation should handle error cases gracefully, including timeouts, service unavailability, and invalid input data.
 
 # Test Strategy:
-Conduct end-to-end testing of complete user journeys. Perform cross-browser and cross-device testing. Validate against accessibility standards (WCAG). Measure performance metrics against targets. Verify that all success criteria from the PRD are demonstrably met.
+Testing should verify both functionality and performance improvements:
+
+1. **Unit Tests**:
+   - Test the shared module functions independently
+   - Verify hash generation is consistent for identical inputs
+   - Test cache hit/miss logic
+
+2. **Integration Tests**:
+   - Test the serverless function with various CSV inputs (small, medium, large)
+   - Verify the function returns correctly formatted node data
+   - Test error handling with malformed inputs
+   - Verify caching works by sending identical requests and checking response times
+
+3. **End-to-End Tests**:
+   - Test the complete flow from frontend to serverless function and back
+   - Verify visualizations render correctly with the processed data
+   - Compare results with the previous client-side implementation to ensure consistency
+
+4. **Performance Testing**:
+   - Measure and compare client-side performance before and after the change
+   - Test with large datasets to verify the client no longer freezes during processing
+   - Measure serverless function execution time and optimize if necessary
+   - Verify caching improves response times for repeated requests
+
+5. **Load Testing**:
+   - Test the function with concurrent requests to ensure it scales appropriately
+   - Verify the system degrades gracefully under heavy load

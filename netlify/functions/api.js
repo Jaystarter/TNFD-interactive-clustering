@@ -168,7 +168,5 @@ If fewer than 5 tools are relevant, return only those that are relevant. Ensure 
   }
 });
 
-// Configure serverless-http to strip the function base path so Express routes match correctly.
-module.exports.handler = serverless(app, {
-  basePath: '/.netlify/functions/api'
-});
+// Let serverless-http determine the base path automatically when invoked directly.
+module.exports.handler = serverless(app);

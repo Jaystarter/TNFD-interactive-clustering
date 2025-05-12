@@ -7,25 +7,26 @@
   # Tell Netlify where the functions are
   functions = "netlify/functions"
 
+# Explicit mapping for base API route
 [[redirects]]
-  # Explicitly map the base API paths to the Netlify function
   from = "/api"
-  to = "/.netlify/functions/api"
+  to   = "/.netlify/functions/api"
   status = 200
-  force = true
+  force  = true
 
+# Explicit mapping for API with trailing slash
 [[redirects]]
   from = "/api/"
-  to = "/.netlify/functions/api"
+  to   = "/.netlify/functions/api"
   status = 200
-  force = true
+  force  = true
 
+# Wildcard mapping for all other API endpoints
 [[redirects]]
-  # Route requests from /api/* to the corresponding function
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat" # Rewrite to the function itself
-  status = 200 # Rewrite status
-  force = true
+  to   = "/.netlify/functions/api/:splat"
+  status = 200
+  force  = true
 
 [dev]
   # Tell Netlify CLI that you are using Vite

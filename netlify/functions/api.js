@@ -47,6 +47,7 @@ app.get('/', (req, res) => {
 // Route for natural language search
 // Path is relative to the '/api/' prefix handled by Netlify redirects
 app.post('/natural-language-search', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] Request body:`, req.body);
   // Check if model initialized correctly
   if (!model) {
     console.error("Search attempt failed: Gemini model not available.");

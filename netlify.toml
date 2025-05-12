@@ -8,6 +8,19 @@
   functions = "netlify/functions"
 
 [[redirects]]
+  # Explicitly map the base API paths to the Netlify function
+  from = "/api"
+  to = "/.netlify/functions/api"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/"
+  to = "/.netlify/functions/api"
+  status = 200
+  force = true
+
+[[redirects]]
   # Route requests from /api/* to the corresponding function
   from = "/api/*"
   to = "/.netlify/functions/api/:splat" # Rewrite to the function itself

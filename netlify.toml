@@ -13,3 +13,11 @@
   to = "/.netlify/functions/api/:splat"
   status = 200 # Rewrite status
   force = true
+
+[dev]
+  # Tell Netlify CLI that you are using Vite
+  framework = "vite"
+  # Tell Netlify CLI to connect to Vite on port 5175
+  targetPort = 5175
+  # Port for the Netlify Dev proxy server
+  port = 9999

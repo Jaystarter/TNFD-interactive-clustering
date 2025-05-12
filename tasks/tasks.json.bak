@@ -2,236 +2,95 @@
   "tasks": [
     {
       "id": 1,
-      "title": "Setup ShadCN UI and Tailwind CSS Infrastructure",
-      "description": "Install and configure ShadCN UI, Tailwind CSS, and related dependencies. Set up the project structure to support incremental component migration.",
-      "status": "pending",
-      "dependencies": [],
+      "title": "Setup Project Repository and Core Infrastructure",
+      "description": "Initialize the project repository, configure build tools, and set up the core infrastructure for the interactive visualization application.",
+      "details": "Create a new repository with a modern frontend stack (React, Material UI, Grid system). Set up CI/CD pipelines, linting, and testing frameworks. Configure environment variables for API endpoints and local storage. Initialize a responsive layout using Material UI Grid. Prepare for integration with Google's Gemini 2.0 Flash-Lite model for natural language search.",
+      "testStrategy": "Verify repository setup, build process, and initial UI rendering. Test environment variable loading and CI/CD pipeline execution.",
       "priority": "high",
-      "details": "Install required packages: shadcn/ui, tailwindcss, postcss, autoprefixer. Configure tailwind.config.js with TNFD brand colors and design tokens. Set up the components.json file for ShadCN CLI. Create a directory structure for new components. Implement a strategy for coexistence of MUI and ShadCN during migration.",
-      "testStrategy": "Verify successful installation by creating a simple test component. Ensure Tailwind classes are properly processed. Confirm that existing MUI components still function correctly alongside the new setup."
+      "dependencies": [],
+      "status": "done",
+      "subtasks": []
     },
     {
       "id": 2,
-      "title": "Implement ShadCN Theming System for TNFD Branding",
-      "description": "Create a theming system using ShadCN and Tailwind that matches the current TNFD branding and supports dark/light modes.",
-      "status": "pending",
+      "title": "Implement Graph Data Model and API Integration",
+      "description": "Define the graph data model for TNFD tools and relationships, and implement API integration for fetching and updating data.",
+      "details": "Design a schema for nodes (tools, frameworks, methodologies) and edges (relationships, compatibility). Implement API endpoints or adapters for fetching and updating graph data. Use local storage for user preferences and history. Ensure data is structured for efficient rendering and search.",
+      "testStrategy": "Test API calls for data retrieval and updates. Validate local storage for user preferences. Check data model integrity and schema validation.",
+      "priority": "high",
       "dependencies": [
         1
       ],
-      "priority": "high",
-      "details": "Define color variables in Tailwind config matching TNFD green theme. Create theme provider component using ShadCN's approach. Implement CSS variables for theme tokens. Set up dark mode support. Create a theme switching mechanism. Document the theming system for future component development.",
-      "testStrategy": "Compare rendered colors and styling against current MUI implementation. Test theme switching functionality. Verify that the theme correctly applies to ShadCN components."
+      "status": "done",
+      "subtasks": []
     },
     {
       "id": 3,
-      "title": "Migrate Core Layout Components",
-      "description": "Replace MUI Grid, Paper, Container, and Box components with ShadCN/Tailwind equivalents.",
-      "status": "done",
+      "title": "Build Interactive Graph Visualization Component",
+      "description": "Develop the core interactive graph visualization component with pan, zoom, and node dragging capabilities.",
+      "details": "Use a graph visualization library (e.g., Sigma.js, ipysigma, or Plotly.js) to render nodes and edges. Implement pan, zoom, and node dragging with smooth animations and transitions. Style nodes and links according to TNFD branding. Ensure the component is responsive and accessible.",
+      "testStrategy": "Test pan, zoom, and node dragging interactions. Verify node and link styling. Check accessibility and responsiveness.",
+      "priority": "high",
       "dependencies": [
         2
       ],
-      "priority": "high",
-      "details": "Create ShadCN equivalents for Paper (using Card or custom component). Replace Grid with Tailwind's grid or flex utilities. Create container components using Tailwind's container utility. Implement spacing utilities to replace Box. Create a layout documentation with examples for consistent usage.",
-      "testStrategy": "Implement visual regression testing to compare layouts before and after migration. Test responsive behavior across different screen sizes. Verify that layouts maintain proper spacing and alignment."
+      "status": "done",
+      "subtasks": []
     },
     {
       "id": 4,
-      "title": "Migrate Typography System",
-      "description": "Replace MUI Typography components with ShadCN typography components or appropriate Tailwind classes.",
-      "status": "done",
-      "dependencies": [
-        2
-      ],
+      "title": "Implement Dynamic Viewport Node Containment Logic",
+      "description": "Ensure all graph nodes remain visible within the SVG viewport during all user interactions and window resizing.",
+      "details": "Implement logic to constrain zoom and pan so nodes cannot be moved or scaled out of view. Handle node dragging to prevent nodes from leaving the viewport. Adjust viewport on window resize to refit all nodes. Add configurable padding for the containment field. Optimize for smooth performance.",
+      "testStrategy": "Test zoom, pan, and node dragging within viewport constraints. Verify node visibility after window resize. Check for jank or performance issues.",
       "priority": "high",
-      "details": "Create typography components for different text styles (h1-h6, body, etc.). Implement consistent text styling using Tailwind classes. Create utility components for common text patterns. Ensure proper font loading. Document typography system with examples.",
-      "testStrategy": "Compare text rendering before and after migration. Verify that font sizes, weights, and styles match the original design. Test accessibility of text elements (contrast, scaling, etc.)."
+      "dependencies": [
+        3
+      ],
+      "status": "pending",
+      "subtasks": []
     },
     {
       "id": 5,
-      "title": "Migrate Form Controls and Input Components",
-      "description": "Replace MUI TextField, Select, Checkbox, and Radio components with ShadCN equivalents.",
-      "status": "done",
-      "dependencies": [
-        3,
-        4
-      ],
+      "title": "Add Search and Filter Functionality",
+      "description": "Implement keyword and natural language search, and filtering for tools and relationships.",
+      "details": "Add a search bar with keyword and natural language capabilities. Integrate Google's Gemini 2.0 Flash-Lite model for natural language queries. Implement filters for features, use cases, and compatibility. Update the graph visualization based on search and filter results.",
+      "testStrategy": "Test keyword and natural language search. Verify filter application and graph updates. Check API call optimization and latency.",
       "priority": "medium",
-      "details": "Implement ShadCN Input component to replace TextField. Create Form components using ShadCN's form primitives. Migrate Select components to ShadCN Select. Replace Checkbox and Radio with ShadCN equivalents. Ensure proper form validation and error handling. Maintain existing form functionality and behavior.",
-      "testStrategy": "Test form submission functionality. Verify validation behavior. Test keyboard navigation and accessibility. Compare form control appearance and behavior with original implementation."
+      "dependencies": [
+        2,
+        3
+      ],
+      "status": "pending",
+      "subtasks": []
     },
     {
       "id": 6,
-      "title": "Implement ShadCN Slider and Button Components",
-      "description": "Replace MUI Slider, Button, and IconButton components with ShadCN equivalents.",
-      "status": "done",
+      "title": "Enhance UI with Feature Weight Controls and Animations",
+      "description": "Add feature weight sliders with tooltips and enhance UI with animations and transitions.",
+      "details": "Implement sliders for adjusting feature weights, with tooltips for guidance. Add animations and transitions for node and link interactions. Style UI components according to TNFD branding. Ensure all controls are accessible and responsive.",
+      "testStrategy": "Test slider functionality and tooltips. Verify animations and transitions. Check UI accessibility and responsiveness.",
+      "priority": "medium",
       "dependencies": [
         3,
-        4
+        5
       ],
-      "priority": "medium",
-      "details": "Implement ShadCN Slider component with tooltip functionality. Create button variants to match current styling. Replace IconButton with ShadCN Button with icon variant. Ensure proper focus states and accessibility. Maintain existing interaction patterns.",
-      "testStrategy": "Test slider functionality including tooltips and value changes. Verify button click handlers and states. Test keyboard accessibility for all interactive elements. Ensure visual consistency with original components."
+      "status": "pending",
+      "subtasks": []
     },
     {
       "id": 7,
-      "title": "Migrate Interactive Components",
-      "description": "Replace MUI Tooltip, Dialog/Modal, Drawer, and Tabs with ShadCN equivalents.",
-      "status": "done",
+      "title": "Implement Export and Reporting Features",
+      "description": "Enable users to export visualizations and generate professional-quality reports.",
+      "details": "Add export options for graph visualizations (PNG, SVG, PDF). Implement report generation with customizable layouts and branding. Ensure exported files are ready for presentations and sharing.",
+      "testStrategy": "Test export functionality for different formats. Verify report layout and branding. Check file quality and usability.",
+      "priority": "medium",
       "dependencies": [
-        5,
+        3,
         6
       ],
-      "priority": "medium",
-      "details": "Implement ShadCN Tooltip component. Replace Dialog/Modal with ShadCN Dialog. Convert Drawer components to ShadCN Sheet. Implement ShadCN Tabs to replace MUI Tabs. Ensure proper focus management and keyboard navigation. Maintain existing interaction patterns and animations.",
-      "testStrategy": "Test opening/closing behavior of dialogs and drawers. Verify tooltip positioning and content. Test tab switching functionality. Ensure proper focus trapping in modal components. Test keyboard accessibility for all interactive elements."
-    },
-    {
-      "id": 8,
-      "title": "Migrate Navigation Components",
-      "description": "Replace MUI AppBar, Menu, MenuItem, and navigation-related components with ShadCN equivalents.",
-      "status": "done",
-      "dependencies": [
-        7
-      ],
-      "priority": "medium",
-      "details": "Create navigation bar using ShadCN components or Tailwind utilities. Implement ShadCN DropdownMenu to replace Menu and MenuItem. Create breadcrumb component using ShadCN or custom implementation. Replace Navigation Drawer with ShadCN Sheet. Ensure mobile responsiveness of navigation elements.",
-      "testStrategy": "Test navigation flow throughout the application. Verify dropdown menu functionality. Test responsive behavior of navigation components. Ensure proper keyboard navigation and accessibility."
-    },
-    {
-      "id": 9,
-      "title": "Migrate Data Display Components",
-      "description": "Replace MUI Table, Card, List, and Chip components with ShadCN equivalents.",
-      "status": "done",
-      "dependencies": [
-        7
-      ],
-      "priority": "medium",
-      "details": "Implement ShadCN Table component. Replace Card, CardContent, CardHeader with ShadCN Card components. Convert List and ListItem to ShadCN equivalents or Tailwind utilities. Replace Chip with ShadCN Badge. Ensure data display components maintain current functionality and appearance.",
-      "testStrategy": "Compare data rendering before and after migration. Test sorting and filtering functionality in tables. Verify card layouts and content display. Test list interactions and badge/chip appearance."
-    },
-    {
-      "id": 10,
-      "title": "Migrate Feedback Components and Implement Custom Components",
-      "description": "Replace MUI Snackbar/Alert, Progress indicators, and implement any custom components needed.",
-      "status": "done",
-      "dependencies": [
-        8,
-        9
-      ],
-      "priority": "medium",
-      "details": "Replace Snackbar/Alert with ShadCN Toast. Implement ShadCN Progress component. Create custom components where ShadCN doesn't provide direct equivalents. Adapt specialized visualization components to work with ShadCN. Refactor any custom components that extend MUI components.",
-      "testStrategy": "Test toast notifications for proper display and dismissal. Verify progress indicators accurately reflect loading states. Test custom components against their original MUI counterparts. Ensure consistent behavior and appearance."
-    },
-    {
-      "id": 11,
-      "title": "Comprehensive Testing and Quality Assurance",
-      "description": "Perform thorough testing of all migrated components to ensure functionality, accessibility, and visual consistency.",
       "status": "pending",
-      "dependencies": [
-        10
-      ],
-      "priority": "high",
-      "details": "Implement visual regression testing suite. Perform functional testing of all migrated components. Conduct accessibility audit using automated tools and manual testing. Test responsiveness across different screen sizes. Create test documentation for future reference. Address any bugs or inconsistencies discovered during testing.",
-      "testStrategy": "Use Jest and Testing Library for component tests. Implement Storybook for visual testing. Use axe or similar tools for accessibility testing. Test across multiple browsers and devices. Compare against original implementation to ensure feature parity."
-    },
-    {
-      "id": 12,
-      "title": "Performance Optimization and Final Cleanup",
-      "description": "Optimize bundle size, remove MUI dependencies, and finalize the migration.",
-      "status": "pending",
-      "dependencies": [
-        11
-      ],
-      "priority": "medium",
-      "details": "Measure and compare bundle sizes before and after migration. Remove all Material UI dependencies. Clean up any temporary migration code. Optimize component loading with code splitting where appropriate. Document performance improvements. Create migration summary and updated component documentation.",
-      "testStrategy": "Use Lighthouse or similar tools to measure performance metrics. Compare bundle sizes and load times before and after migration. Verify that all MUI dependencies are successfully removed. Test application under various network conditions."
-    },
-    {
-      "id": 13,
-      "title": "Migrate TNFD Tools Relational Map from Material UI to SHADCN Components",
-      "description": "Replace all Material UI (MUI) components in the TNFD Tools Relational Map application with SHADCN components, using Lucide for icons and Tailwind for styling, while maintaining visual consistency and accessibility.",
-      "details": "This task involves a complete migration from Material UI to SHADCN UI components:\n\n1. **Setup and Configuration**:\n   - Remove all MUI dependencies from package.json\n   - Install and configure SHADCN UI following Context7 documentation\n   - Install Lucide for icons\n   - Configure Tailwind CSS for layout and styling\n\n2. **Component Migration Plan** (implement in this order):\n   - **Typography**: Replace MUI Typography with SHADCN equivalents (h1-h4, p, blockquote)\n   - **Icons**: Replace all MUI icons with Lucide equivalents\n   - **Basic Components**: Migrate Button, Card, Avatar components\n   - **Form Components**: Replace TextField, Select, Checkbox, Radio, Switch components\n   - **Navigation**: Update Tabs, Breadcrumbs, Pagination components\n   - **Feedback**: Migrate Progress, Alert, Toast components\n   - **Overlay**: Replace Dialog, Drawer, Tooltip components\n   - **Data Display**: Update Accordion/Collapse, Table components\n   - **Layout**: Replace Grid, Box, Container with Tailwind flex/grid utilities\n\n3. **For each component type**:\n   - Reference the SHADCN documentation for proper implementation\n   - Ensure theme consistency with the current design\n   - Maintain all accessibility features (ARIA attributes, keyboard navigation)\n   - Update component props to match SHADCN API\n\n4. **Theme Migration**:\n   - Create equivalent theme tokens in Tailwind configuration\n   - Ensure consistent color palette, spacing, and typography\n\n5. **Documentation**:\n   - Document any component usage pattern changes for the team\n   - Create a migration reference guide for future components\n\nRefer to Context7 documentation for SHADCN and Lucide usage patterns and migration best practices throughout the implementation.",
-      "testStrategy": "Testing should verify both functionality and visual consistency:\n\n1. **Visual Regression Testing**:\n   - Capture screenshots of key UI states before migration\n   - Compare with post-migration screenshots to ensure visual parity\n   - Test across multiple viewport sizes (mobile, tablet, desktop)\n\n2. **Component Testing**:\n   - Update existing component tests to work with SHADCN components\n   - Verify each component maintains the same functionality\n   - Test all interactive behaviors (clicks, hovers, focus states)\n\n3. **Accessibility Testing**:\n   - Run automated accessibility tests (Axe, Lighthouse)\n   - Verify screen reader compatibility\n   - Test keyboard navigation flows\n   - Ensure proper focus management in interactive components\n\n4. **Integration Testing**:\n   - Verify components work correctly together in complex UI sections\n   - Test data flow between components\n   - Ensure event handlers are properly connected\n\n5. **Performance Testing**:\n   - Compare bundle size before and after migration\n   - Measure render times for complex component trees\n   - Test application load time\n\n6. **Browser Compatibility**:\n   - Test in Chrome, Firefox, Safari, and Edge\n   - Verify mobile browser compatibility\n\nDocument all test results with before/after comparisons to demonstrate successful migration.",
-      "status": "pending",
-      "dependencies": [],
-      "priority": "high",
-      "subtasks": [
-        {
-          "id": 1,
-          "title": "Set up SHADCN UI, Tailwind CSS, and Lucide icons infrastructure",
-          "description": "Remove Material UI dependencies and set up the foundational infrastructure for SHADCN UI components, Tailwind CSS styling, and Lucide icons in the TNFD Tools Relational Map application.",
-          "dependencies": [],
-          "details": "1. Remove all MUI dependencies from package.json (mui/material, mui/icons-material, emotion/react, emotion/styled)\n2. Install Tailwind CSS and configure it according to Context7 documentation:\n   - Run `npm install -D tailwindcss postcss autoprefixer`\n   - Initialize with `npx tailwindcss init -p`\n   - Configure content paths in tailwind.config.js\n   - Add Tailwind directives to global CSS\n3. Install SHADCN UI CLI: `npm install -D @shadcn/ui`\n4. Initialize SHADCN UI with `npx shadcn-ui init` and select appropriate options (React, Next.js, App/Pages Router, etc.)\n5. Install Lucide icons: `npm install lucide-react`\n6. Set up theme configuration in tailwind.config.js to match current design system:\n   - Define color palette variables to match current theme\n   - Configure typography scales\n   - Set up spacing and breakpoints\n7. Create a components/ui directory for SHADCN components\n8. Set up utility functions for class merging (cn utility using clsx/twMerge)\n9. Test the setup by adding a simple SHADCN component and verifying it renders correctly\n10. Document the new project structure and configuration for the team",
-          "status": "pending",
-          "parentTaskId": 13
-        },
-        {
-          "id": 2,
-          "title": "Migrate basic UI components: Typography, Button, Card, and Icons",
-          "description": "Replace MUI Typography, Button, Card components, and icons with their SHADCN and Lucide equivalents, establishing the foundation for the UI migration.",
-          "dependencies": [
-            1
-          ],
-          "details": "1. Typography Migration:\n   - Add SHADCN Typography components using `npx shadcn-ui add typography`\n   - Create consistent text styles for h1-h6, paragraphs, and other text elements\n   - Replace all MUI Typography components with appropriate HTML elements + Tailwind classes\n   - Example: `<Typography variant=\"h1\">` → `<h1 className=\"text-4xl font-bold\">`\n\n2. Button Migration:\n   - Add SHADCN Button component: `npx shadcn-ui add button`\n   - Map MUI Button variants to SHADCN variants (contained, outlined, text)\n   - Replace all MUI Button instances with SHADCN Button\n   - Ensure proper handling of startIcon/endIcon props using Lucide icons\n   - Example: `<Button startIcon={<DeleteIcon />}>` → `<Button><Trash2 className=\"mr-2 h-4 w-4\" />Delete</Button>`\n\n3. Card Migration:\n   - Add SHADCN Card components: `npx shadcn-ui add card`\n   - Replace MUI Card, CardContent, CardHeader, CardActions with SHADCN equivalents\n   - Ensure proper spacing and styling to match current design\n\n4. Icon Migration:\n   - Create a mapping document of all MUI icons to their Lucide equivalents\n   - Replace all MUI icon imports with Lucide imports\n   - Example: `import DeleteIcon from '@mui/icons-material/Delete'` → `import { Trash2 } from 'lucide-react'`\n   - Standardize icon sizing with Tailwind classes (h-4 w-4, h-5 w-5, etc.)\n\n5. Test all migrated components for visual consistency and accessibility\n6. Document any component API changes for the team",
-          "status": "pending",
-          "parentTaskId": 13
-        },
-        {
-          "id": 3,
-          "title": "Migrate form and input components: TextField, Select, Checkbox, Radio, Switch",
-          "description": "Replace all MUI form components with their SHADCN equivalents, ensuring proper form validation, accessibility, and consistent styling.",
-          "dependencies": [
-            1,
-            2
-          ],
-          "details": "1. Input and TextField Migration:\n   - Add SHADCN Input component: `npx shadcn-ui add input`\n   - Replace MUI TextField with SHADCN Input\n   - Handle label, helper text, and error states\n   - Example: `<TextField label=\"Name\" error={!!error} helperText={error} />` → `<div className=\"space-y-2\"><Label htmlFor=\"name\">Name</Label><Input id=\"name\" className={error ? \"border-red-500\" : \"\"} />{error && <p className=\"text-sm text-red-500\">{error}</p>}</div>`\n\n2. Select Component Migration:\n   - Add SHADCN Select component: `npx shadcn-ui add select`\n   - Replace MUI Select with SHADCN Select\n   - Ensure proper handling of options, placeholder text, and multi-select functionality\n   - Map MUI Select props to SHADCN Select props\n\n3. Checkbox Migration:\n   - Add SHADCN Checkbox component: `npx shadcn-ui add checkbox`\n   - Replace MUI Checkbox with SHADCN Checkbox\n   - Ensure proper label association and styling\n   - Handle indeterminate state if used\n\n4. Radio Group Migration:\n   - Add SHADCN RadioGroup component: `npx shadcn-ui add radio-group`\n   - Replace MUI Radio and RadioGroup with SHADCN equivalents\n   - Ensure proper grouping and label association\n\n5. Switch Migration:\n   - Add SHADCN Switch component: `npx shadcn-ui add switch`\n   - Replace MUI Switch with SHADCN Switch\n   - Ensure proper label association and styling\n\n6. Create form layout utilities with Tailwind to replace MUI FormControl, FormGroup, etc.\n7. Test all form components for accessibility (keyboard navigation, screen reader support)\n8. Verify form validation works correctly with the new components\n9. Document form component usage patterns for the team",
-          "status": "pending",
-          "parentTaskId": 13
-        },
-        {
-          "id": 4,
-          "title": "Migrate navigation, feedback, and overlay components: Tabs, Alert, Dialog, Tooltip",
-          "description": "Replace MUI navigation, feedback, and overlay components with their SHADCN equivalents, ensuring proper interaction patterns and accessibility.",
-          "dependencies": [
-            1,
-            2,
-            3
-          ],
-          "details": "1. Tabs Migration:\n   - Add SHADCN Tabs component: `npx shadcn-ui add tabs`\n   - Replace MUI Tabs, Tab, TabPanel with SHADCN equivalents\n   - Ensure proper tab navigation and content switching\n   - Example: Convert MUI `<Tabs><Tab label=\"Tab 1\" /><TabPanel>Content 1</TabPanel></Tabs>` to SHADCN pattern\n\n2. Alert and Toast Migration:\n   - Add SHADCN Alert component: `npx shadcn-ui add alert`\n   - Add SHADCN Toast component: `npx shadcn-ui add toast`\n   - Replace MUI Alert, Snackbar with SHADCN equivalents\n   - Ensure proper styling for different severity levels (error, warning, info, success)\n   - Implement toast positioning and auto-dismiss functionality\n\n3. Dialog/Modal Migration:\n   - Add SHADCN Dialog component: `npx shadcn-ui add dialog`\n   - Replace MUI Dialog, DialogTitle, DialogContent, DialogActions with SHADCN equivalents\n   - Ensure proper focus management, keyboard navigation, and backdrop handling\n   - Example: Convert MUI Dialog pattern to SHADCN `<Dialog><DialogTrigger /><DialogContent><DialogHeader><DialogTitle /></DialogHeader></DialogContent></Dialog>`\n\n4. Tooltip Migration:\n   - Add SHADCN Tooltip component: `npx shadcn-ui add tooltip`\n   - Replace MUI Tooltip with SHADCN Tooltip\n   - Ensure proper positioning, delay behavior, and content rendering\n\n5. Drawer Migration (if used):\n   - Add SHADCN Sheet component: `npx shadcn-ui add sheet`\n   - Replace MUI Drawer with SHADCN Sheet\n   - Configure for different positions (left, right, top, bottom)\n\n6. Test all interactive components for keyboard accessibility and screen reader support\n7. Verify that all components maintain proper focus management during interactions\n8. Document any changes in component behavior or API for the team",
-          "status": "pending",
-          "parentTaskId": 13
-        },
-        {
-          "id": 5,
-          "title": "Migrate data display and layout components: Table, Accordion, Grid, and finalize theme",
-          "description": "Replace MUI data display and layout components with SHADCN equivalents and Tailwind utilities, then finalize the theme migration and create documentation.",
-          "dependencies": [
-            1,
-            2,
-            3,
-            4
-          ],
-          "details": "1. Table Migration:\n   - Add SHADCN Table component: `npx shadcn-ui add table`\n   - Replace MUI Table, TableHead, TableBody, TableRow, TableCell with SHADCN equivalents\n   - Implement sorting, pagination, and selection functionality if used\n   - Ensure proper styling for different table states (hover, selected, etc.)\n\n2. Accordion/Collapse Migration:\n   - Add SHADCN Accordion component: `npx shadcn-ui add accordion`\n   - Replace MUI Accordion, AccordionSummary, AccordionDetails with SHADCN equivalents\n   - Ensure proper expand/collapse behavior and accessibility\n\n3. Layout Migration:\n   - Replace MUI Grid, Box, Container with Tailwind flex/grid utilities\n   - Create reusable layout components if needed (Container, Section, etc.)\n   - Example: `<Grid container spacing={2}>` → `<div className=\"grid grid-cols-1 md:grid-cols-2 gap-4\">`\n   - Implement responsive layouts using Tailwind breakpoints\n\n4. Progress Component Migration:\n   - Add SHADCN Progress component: `npx shadcn-ui add progress`\n   - Replace MUI LinearProgress, CircularProgress with SHADCN equivalents\n   - Ensure proper styling and animation\n\n5. Final Theme Refinement:\n   - Review and finalize all color tokens in tailwind.config.js\n   - Ensure consistent spacing, typography, and border radius throughout the application\n   - Implement dark mode support if required\n   - Create any missing utility classes for consistent styling\n\n6. Comprehensive Testing:\n   - Perform visual regression testing across all components\n   - Test responsive behavior across different screen sizes\n   - Verify accessibility compliance with WCAG standards\n   - Test performance impact of the migration\n\n7. Documentation:\n   - Create a comprehensive component migration reference guide\n   - Document new styling patterns and best practices\n   - Update any existing documentation to reflect the new component library\n   - Create examples of common component usage patterns\n\n8. Remove any remaining MUI dependencies and clean up unused code",
-          "status": "pending",
-          "parentTaskId": 13
-        }
-      ]
-    },
-    {
-      "id": 14,
-      "title": "Design and Implement UI Structure for TNFD Tools Relational Map with ShadCN/Tailwind",
-      "description": "Create a comprehensive UI architecture and component structure for the TNFD Tools Relational Map application using ShadCN and Tailwind CSS, replacing the previous MUI implementation.",
-      "details": "Design and implement the complete UI structure for the TNFD Tools Relational Map application following these requirements:\n\n1. **Component Architecture**:\n   - Create a component hierarchy diagram showing parent-child relationships\n   - Define reusable components vs. page-specific components\n   - Document component props and state management approach\n\n2. **UI Sections to Implement**:\n   - **Header**: Application title, TNFD branding, navigation controls\n   - **Search Bar**: Input with AI/natural language search indication and visual feedback\n   - **Filter Panel**: Implement filter controls for categories, functions, environments, data sources, and users\n   - **Main Visualization Area**: Container for the force-directed graph with appropriate sizing and responsiveness\n   - **Tool Details Panel**: Sidebar or modal design for displaying detailed information\n   - **Responsive Layout**: Ensure proper display across desktop, tablet, and mobile devices\n\n3. **Technical Implementation**:\n   - Set up ShadCN component library with Tailwind CSS\n   - Create a consistent theming system with color variables, spacing, and typography\n   - Implement responsive breakpoints and layout strategies\n   - Ensure accessibility compliance (WCAG AA standards)\n   - Document component usage patterns for future development\n\n4. **Migration Strategy**:\n   - Identify MUI components to be replaced and their ShadCN equivalents\n   - Create a phased migration plan for incremental implementation\n   - Ensure visual consistency during transition period\n\nDeliver a Figma design or detailed wireframes along with the component implementation plan.",
-      "testStrategy": "The UI structure implementation should be verified through the following tests:\n\n1. **Component Rendering Tests**:\n   - Verify each component renders correctly in isolation using Storybook or similar tool\n   - Test components with various prop combinations and states\n   - Ensure components match design specifications\n\n2. **Layout and Responsiveness Tests**:\n   - Test the application at standard breakpoints (320px, 768px, 1024px, 1440px)\n   - Verify that all UI elements adjust appropriately at each breakpoint\n   - Confirm that content remains accessible and usable at all screen sizes\n\n3. **Accessibility Testing**:\n   - Run automated accessibility tests using tools like Axe or Lighthouse\n   - Perform keyboard navigation testing through all interactive elements\n   - Verify proper ARIA attributes and semantic HTML structure\n   - Test with screen readers to ensure compatibility\n\n4. **Visual Regression Testing**:\n   - Capture screenshots of the current MUI implementation\n   - Compare with new ShadCN/Tailwind implementation to ensure visual consistency\n   - Document and justify any intentional visual changes\n\n5. **User Testing**:\n   - Conduct user testing sessions with 3-5 users to validate the new UI\n   - Gather feedback on usability, clarity, and visual appeal\n   - Document findings and implement necessary adjustments\n\nAll tests should be documented with results and any issues addressed before considering the task complete.",
-      "status": "pending",
-      "dependencies": [],
-      "priority": "high"
+      "subtasks": []
     }
-  ],
-  "metadata": {
-    "projectName": "TNFD Tools MUI to ShadCN Migration",
-    "totalTasks": 12,
-    "sourceFile": "/Users/jaydenmcnab/Projects/tool-word-cloud-relational-map/scripts/shadcn_migration_prd.txt",
-    "generatedAt": "2023-11-14"
-  }
+  ]
 }

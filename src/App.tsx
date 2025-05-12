@@ -518,8 +518,16 @@ function App() {
     setShowSearchResults(true);
     
     try {
-      // Update the fetch URL to the Netlify function endpoint (relative path)
-      const response = await fetch('/.netlify/functions/api/natural-language-search', {
+      console.log('--- Sending AI Search Request ---');
+      console.log('Query:', query);
+      console.log('Tools array length:', tools?.length);
+      // Log a small sample of the tools array to check structure
+      if (tools && tools.length > 0) {
+        console.log('Tools sample (first tool):', JSON.stringify(tools[0], null, 2));
+      }
+      
+      // Update the fetch URL to use the redirected path
+      const response = await fetch('/api/natural-language-search', { // Use the redirected path
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

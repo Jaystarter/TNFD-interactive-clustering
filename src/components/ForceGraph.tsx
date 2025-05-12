@@ -180,14 +180,15 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
   // Ref for popup DOM element and current info
   const popupRef = useRef<HTMLDivElement>(null);
   const relationshipInfoRef = useRef<RelationshipInfo | null>(null);
-  // Ref to track if we've fit the viewport already
+  // Ref to track if we have already fit to viewport initially
   const hasInitialFitRef = useRef<boolean>(false);
-  // Ref to store the initial zoom scale for conditional panning
-  const initialZoomScaleRef = useRef<number>(1);
   // Ref to track if we're at the initial zoom level (for conditional panning)
+  const initialZoomScaleRef = useRef<number>(1);
   const isAtInitialZoomRef = useRef<boolean>(true);
+  // Ref to track if the user has interacted with the graph (zoomed or panned)
+  const userInteractedRef = useRef<boolean>(false);
   // Ref to store the zoom behavior
-  const zoomBehaviorRef = useRef<d3.ZoomBehavior<Element, unknown> | null>(null);
+  const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
 
   // Sync ref and set popup position + animation
   useLayoutEffect(() => {
@@ -266,12 +267,26 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
     const container = svg.append('g')
       .attr('class', 'container');
 
-    containerRef.current = container.node();
+    containerRef.current = container.node() as SVGGElement; // Ensure correct type for ref
 
     // Create zoom behavior with conditional panning
-    const zoom = d3.zoom()
-      .scaleExtent([0.5, 5])
+    const zoom: d3.ZoomBehavior<SVGSVGElement, unknown> = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 5]) // Allow zooming out, max zoom 5x
+      .filter((event: any) => {
+        // Always allow wheel zoom for scaling
+        if (event.type === 'wheel' || event.type === 'mousewheel') return true;
+        // Block panning (mousedown/touchstart/pointerdown) before user interaction
+        if ((event.type === 'mousedown' || event.type === 'touchstart' || event.type === 'pointerdown') && !userInteractedRef.current) {
+          return false;
+        }
+        return true;
+      })
       .on('zoom', (event) => {
+        // Detect if this is a user-initiated zoom/pan (not programmatic)
+        if (event.sourceEvent) {
+          userInteractedRef.current = true;
+        }
+
         if (containerRef.current) {
           // Store the current transform
           zoomTransformRef.current = event.transform;
@@ -299,20 +314,8 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
     zoomBehaviorRef.current = zoom;
 
     // Apply zoom behavior to SVG
-    svg.call(zoom as any)
+    svg.call(zoom)
       .on('dblclick.zoom', null);
-
-    // Disable panning when at initial zoom level
-    svg.on('mousedown touchstart', (event) => {
-      if (isAtInitialZoomRef.current) {
-        // Only prevent default if it's a pan attempt (not a click on a node)
-        const target = event.target as Element;
-        if (target.tagName === 'svg' || target.classList.contains('container')) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-      }
-    });
 
     container.append('g').attr('class', 'hull-group');
     container.append('g').attr('class', 'links');
@@ -569,7 +572,7 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
     const nodeEnter = nodeElements.enter()
       .append('g')
       .attr('class', 'node')
-      .call(drag(simulation) as any)
+      .call(drag(simulation, userInteractedRef) as any)
       .on('mouseover', function(_event, d: Node) {
         // Show label on hover immediately (no animation delay)
         const nodeId = d.id;
@@ -1036,6 +1039,75 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
       });
     };
 
+    const calculateNodesBounds = () => {
+      const currentNodes = nodesRef.current;
+      if (currentNodes.length === 0) return null;
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      currentNodes.forEach(node => {
+        if (node.x === undefined || node.y === undefined) return;
+
+        const radius = node.relevance * 20; // Node radius - consider making this consistent with actual render
+
+        minX = Math.min(minX, node.x - radius);
+        minY = Math.min(minY, node.y - radius);
+        maxX = Math.max(maxX, node.x + radius);
+        maxY = Math.max(maxY, node.y + radius);
+      });
+
+      return { minX, minY, maxX, maxY };
+    };
+
+    const fitNodesToViewport = () => {
+      if (!svgRef.current || !containerRef.current || !zoomBehaviorRef.current) return;
+
+      const bounds = calculateNodesBounds();
+      if (!bounds) return;
+
+      const { minX, minY, maxX, maxY } = bounds;
+      const svgWidth = svgRef.current.clientWidth;
+      const svgHeight = svgRef.current.clientHeight;
+
+      const padding = 80; // Increased padding
+      const contentWidth = maxX - minX;
+      const contentHeight = maxY - minY;
+
+      if (contentWidth <= 0 || contentHeight <= 0) return; // Avoid division by zero or negative
+
+      const scale = Math.min(
+        svgWidth / (contentWidth + padding * 2),
+        svgHeight / (contentHeight + padding * 2),
+        2 // Cap initial zoom-in to 2x to prevent extreme zoom on small graphs
+      );
+
+      const translateX = svgWidth / 2 - (minX + contentWidth / 2) * scale;
+      const translateY = svgHeight / 2 - (minY + contentHeight / 2) * scale;
+
+      const transform = d3.zoomIdentity.translate(translateX, translateY).scale(scale);
+
+      const svgSelection = d3.select(svgRef.current);
+      svgSelection.transition().duration(750).call(zoomBehaviorRef.current.transform, transform);
+
+      initialZoomScaleRef.current = scale;
+      isAtInitialZoomRef.current = true;
+      userInteractedRef.current = false; // Reset user interaction
+      zoomTransformRef.current = transform; // Store this transform
+    };
+
+    // Fit nodes to viewport ONLY on initial load AFTER simulation settles a bit
+    simulation.on('end.fit', () => { // Added .fit namespace for the event
+      if (!hasInitialFitRef.current) {
+        setTimeout(() => { // Give it a moment for positions to finalize
+          fitNodesToViewport();
+          hasInitialFitRef.current = true;
+        }, 150); // Increased timeout slightly
+      }
+    });
+
     simulation.on('tick', () => {
       linkUpdate
         .attr('x1', (d: any) => (typeof d.source === 'object' ? d.source.x : 0))
@@ -1075,102 +1147,19 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
       });
     }
 
-    // Function to calculate the bounds of all nodes
-    const calculateNodesBounds = () => {
-      if (nodes.length === 0) return null;
-
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
-
-      nodes.forEach(node => {
-        if (node.x === undefined || node.y === undefined) return;
-
-        const radius = node.relevance * 20; // Node radius
-
-        minX = Math.min(minX, node.x - radius);
-        minY = Math.min(minY, node.y - radius);
-        maxX = Math.max(maxX, node.x + radius);
-        maxY = Math.max(maxY, node.y + radius);
-      });
-
-      return { minX, minY, maxX, maxY };
-    };
-
-    // Function to fit all nodes in the viewport
-    const fitNodesToViewport = () => {
-      if (!svgRef.current || !containerRef.current) return;
-
-      const bounds = calculateNodesBounds();
-      if (!bounds || !svgRef.current) return;
-
-      const { minX, minY, maxX, maxY } = bounds;
-
-      // Add padding
-      const padding = 50;
-      const width = maxX - minX + padding * 2;
-      const height = maxY - minY + padding * 2;
-
-      // Calculate scale to fit
-      const scale = Math.min(
-        svgRef.current.clientWidth / width,
-        svgRef.current.clientHeight / height
-      );
-
-      // Calculate center point of the bounds
-      const centerX = (minX + maxX) / 2;
-      const centerY = (minY + maxY) / 2;
-
-      // Calculate the transform to center and scale
-      const transform = d3.zoomIdentity
-        .translate(svgRef.current.clientWidth / 2, svgRef.current.clientHeight / 2)
-        .scale(scale)
-        .translate(-centerX, -centerY);
-
-      // Store the initial zoom scale for conditional panning
-      initialZoomScaleRef.current = scale;
-      isAtInitialZoomRef.current = true;
-
-      // Apply the transform directly
-      if (svgRef.current) {
-        const svgSelection = d3.select(svgRef.current) as any; // Cast to any for zoomBehavior typing
-        const zoomBehavior = zoomBehaviorRef.current as any; // Cast to any for zoomBehavior typing
-
-        if (zoomBehavior) {
-          svgSelection
-            .transition()
-            .duration(750) // Keep the transition for smoothness
-            .call(zoomBehavior.transform, transform);
-        }
-      }
-
-      // Update the zoom transform ref
-      zoomTransformRef.current = transform;
-
-      // Mark that we've done the initial fit
-      hasInitialFitRef.current = true;
-    };
-
-    // Fit nodes to viewport ONLY on initial load
-    simulation.on('end', () => {
-      if (!hasInitialFitRef.current) {
-        fitNodesToViewport();
-        // Set flag to true to ensure this only happens once
-        hasInitialFitRef.current = true;
-      }
-    });
-
     // Handle window resize - only adjust the view, don't re-zoom
     const handleResize = () => {
-      // Don't auto-zoom on resize, just maintain the current view
-      // This prevents the unwanted auto-zoom behavior after 30 seconds
+      // Fit nodes to viewport on resize
+      if (svgRef.current && containerRef.current) {
+        fitNodesToViewport();
+      }
     };
 
     window.addEventListener('resize', handleResize);
 
     return () => {
       simulation.stop();
+      simulation.on('end.fit', null); // Clean up namespaced event listener
       window.removeEventListener('resize', handleResize);
     };
 
@@ -1333,13 +1322,14 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
   );
 };
 
-
-
-const drag = (simulation: d3.Simulation<Node, undefined>) => {
+const drag = (simulation: d3.Simulation<Node, undefined>, userHasInteracted: React.MutableRefObject<boolean>) => {
   function dragstarted(event: any) {
     if (event.sourceEvent.type === 'mousedown') {
       event.sourceEvent.stopPropagation();
     }
+    
+    // Mark that user has interacted with a node (dragging counts as interaction)
+    userHasInteracted.current = true;
 
     if (!event.active) simulation.alphaTarget(0.3).restart();
     event.subject.fx = event.subject.x;

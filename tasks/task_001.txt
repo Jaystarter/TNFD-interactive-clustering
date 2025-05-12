@@ -1,11 +1,11 @@
 # Task ID: 1
-# Title: Redesign Node Click Popup
+# Title: Setup Project Repository and Core Infrastructure
 # Status: done
 # Dependencies: None
 # Priority: high
-# Description: Modify the existing node click popup to be smaller, display the tool's description, and visually match the provided example image. The popup should include the tool's name (title), primary function, data sources (as chips), and links to other tools (as chips/text).
+# Description: Initialize the project repository, configure build tools, and set up the core infrastructure for the interactive visualization application.
 # Details:
-1. Locate Existing Popup: Identify the React component and logic for the current popup (likely in App.tsx or child, triggered by relationshipInfo state). 2. Data Mapping: Map Tool.name to title; find a suitable Tool.description field; map Tool.primaryFunction; map Tool.dataSources (array) to MUI Chips; map Tool.linksTo (array) to MUI Chips with '+N more' logic. 3. Component Structure & Styling: Use MUI Paper, Box, Typography, Chip. Ensure it's 'way smaller'. Mimic example image layout. 4. Functionality: Retain existing show/hide logic on node click/click away.
+Create a new repository with a modern frontend stack (React, Material UI, Grid system). Set up CI/CD pipelines, linting, and testing frameworks. Configure environment variables for API endpoints and local storage. Initialize a responsive layout using Material UI Grid. Prepare for integration with Google's Gemini 2.0 Flash-Lite model for natural language search.
 
 # Test Strategy:
-Click various nodes. Verify correct info display (name, description, primary function, data sources, links). Confirm smaller size and visual match. Test with varying data quantities.
+Verify repository setup, build process, and initial UI rendering. Test environment variable loading and CI/CD pipeline execution.

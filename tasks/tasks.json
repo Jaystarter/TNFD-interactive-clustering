@@ -2,20 +2,164 @@
   "tasks": [
     {
       "id": 1,
-      "title": "Redesign Node Click Popup",
-      "description": "Modify the existing node click popup to be smaller, display the tool's description, and visually match the provided example image. The popup should include the tool's name (title), primary function, data sources (as chips), and links to other tools (as chips/text).",
-      "details": "1. Locate Existing Popup: Identify the React component and logic for the current popup (likely in App.tsx or child, triggered by relationshipInfo state). 2. Data Mapping: Map Tool.name to title; find a suitable Tool.description field; map Tool.primaryFunction; map Tool.dataSources (array) to MUI Chips; map Tool.linksTo (array) to MUI Chips with '+N more' logic. 3. Component Structure & Styling: Use MUI Paper, Box, Typography, Chip. Ensure it's 'way smaller'. Mimic example image layout. 4. Functionality: Retain existing show/hide logic on node click/click away.",
-      "testStrategy": "Click various nodes. Verify correct info display (name, description, primary function, data sources, links). Confirm smaller size and visual match. Test with varying data quantities.",
-      "status": "done",
-      "dependencies": [],
+      "title": "Setup Project Repository and Core Infrastructure",
+      "description": "Initialize the project repository, configure build tools, and set up the core infrastructure for the interactive visualization application.",
+      "details": "Create a new repository with a modern frontend stack (React, Material UI, Grid system). Set up CI/CD pipelines, linting, and testing frameworks. Configure environment variables for API endpoints and local storage. Initialize a responsive layout using Material UI Grid. Prepare for integration with Google's Gemini 2.0 Flash-Lite model for natural language search.",
+      "testStrategy": "Verify repository setup, build process, and initial UI rendering. Test environment variable loading and CI/CD pipeline execution.",
       "priority": "high",
+      "dependencies": [],
+      "status": "done",
+      "subtasks": []
+    },
+    {
+      "id": 2,
+      "title": "Implement Graph Data Model and API Integration",
+      "description": "Define the graph data model for TNFD tools and relationships, and implement API integration for fetching and updating data.",
+      "details": "Design a schema for nodes (tools, frameworks, methodologies) and edges (relationships, compatibility). Implement API endpoints or adapters for fetching and updating graph data. Use local storage for user preferences and history. Ensure data is structured for efficient rendering and search.",
+      "testStrategy": "Test API calls for data retrieval and updates. Validate local storage for user preferences. Check data model integrity and schema validation.",
+      "priority": "high",
+      "dependencies": [
+        1
+      ],
+      "status": "done",
+      "subtasks": []
+    },
+    {
+      "id": 3,
+      "title": "Build Interactive Graph Visualization Component",
+      "description": "Develop the core interactive graph visualization component with pan, zoom, and node dragging capabilities.",
+      "details": "Use a graph visualization library (e.g., Sigma.js, ipysigma, or Plotly.js) to render nodes and edges. Implement pan, zoom, and node dragging with smooth animations and transitions. Style nodes and links according to TNFD branding. Ensure the component is responsive and accessible.",
+      "testStrategy": "Test pan, zoom, and node dragging interactions. Verify node and link styling. Check accessibility and responsiveness.",
+      "priority": "high",
+      "dependencies": [
+        2
+      ],
+      "status": "done",
+      "subtasks": []
+    },
+    {
+      "id": 4,
+      "title": "Implement Dynamic Viewport Node Containment Logic",
+      "description": "Ensure all graph nodes remain visible within the SVG viewport during all user interactions and window resizing.",
+      "details": "Implement logic to constrain zoom and pan so nodes cannot be moved or scaled out of view. Handle node dragging to prevent nodes from leaving the viewport. Adjust viewport on window resize to refit all nodes. Add configurable padding for the containment field. Optimize for smooth performance.",
+      "testStrategy": "Test zoom, pan, and node dragging within viewport constraints. Verify node visibility after window resize. Check for jank or performance issues.",
+      "priority": "high",
+      "dependencies": [
+        3
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Zoom and Pan Constraints",
+          "description": "Develop logic to constrain zoom and pan interactions so that the viewport never allows nodes to move outside its visible bounds, respecting minimum and maximum zoom levels.",
+          "dependencies": [],
+          "details": "Ensure that when users zoom or pan, the viewport clamps the visible area so all nodes remain within view, factoring in edge cases such as extreme zoom or rapid panning.",
+          "status": "pending"
+        },
+        {
+          "id": 2,
+          "title": "Node Drag Containment Logic",
+          "description": "Create logic to prevent nodes from being dragged outside the visible viewport area, dynamically updating constraints as the viewport changes.",
+          "dependencies": [
+            1
+          ],
+          "details": "When a node is dragged, its position should be clamped so it cannot be moved beyond the viewport's edges, considering current zoom, pan, and padding.",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "title": "Viewport Adjustment on Resize",
+          "description": "Implement responsive logic to adjust the viewport and reposition nodes as necessary when the container or window is resized.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "On resize events, recalculate viewport bounds and ensure all nodes remain visible, updating pan/zoom as needed to maintain containment.",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "title": "Configurable Padding Support",
+          "description": "Add support for configurable padding between nodes and the viewport edges, applying this padding to all containment calculations.",
+          "dependencies": [
+            1,
+            2,
+            3
+          ],
+          "details": "Allow developers to specify padding values that are respected during zoom, pan, drag, and resize operations, ensuring nodes never touch the viewport edge.",
+          "status": "pending"
+        },
+        {
+          "id": 5,
+          "title": "Performance Optimization",
+          "description": "Optimize containment logic for real-time performance, minimizing layout thrashing and ensuring smooth user interactions.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "Profile and refactor code to reduce unnecessary calculations, leverage GPU-accelerated transforms, and batch updates where possible for efficient rendering.",
+          "status": "pending"
+        },
+        {
+          "id": 6,
+          "title": "Comprehensive Testing",
+          "description": "Develop and execute a suite of tests covering all containment scenarios, including edge cases for zoom, pan, drag, resize, and padding.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "details": "Write unit, integration, and UI tests to verify correct containment behavior under all supported interactions and configurations.",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Add Search and Filter Functionality",
+      "description": "Implement keyword and natural language search, and filtering for tools and relationships.",
+      "details": "Add a search bar with keyword and natural language capabilities. Integrate Google's Gemini 2.0 Flash-Lite model for natural language queries. Implement filters for features, use cases, and compatibility. Update the graph visualization based on search and filter results.",
+      "testStrategy": "Test keyword and natural language search. Verify filter application and graph updates. Check API call optimization and latency.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        3
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 6,
+      "title": "Enhance UI with Feature Weight Controls and Animations",
+      "description": "Add feature weight sliders with tooltips and enhance UI with animations and transitions.",
+      "details": "Implement sliders for adjusting feature weights, with tooltips for guidance. Add animations and transitions for node and link interactions. Style UI components according to TNFD branding. Ensure all controls are accessible and responsive.",
+      "testStrategy": "Test slider functionality and tooltips. Verify animations and transitions. Check UI accessibility and responsiveness.",
+      "priority": "medium",
+      "dependencies": [
+        3,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 7,
+      "title": "Implement Export and Reporting Features",
+      "description": "Enable users to export visualizations and generate professional-quality reports.",
+      "details": "Add export options for graph visualizations (PNG, SVG, PDF). Implement report generation with customizable layouts and branding. Ensure exported files are ready for presentations and sharing.",
+      "testStrategy": "Test export functionality for different formats. Verify report layout and branding. Check file quality and usability.",
+      "priority": "medium",
+      "dependencies": [
+        3,
+        6
+      ],
+      "status": "pending",
       "subtasks": []
     }
-  ],
-  "metadata": {
-    "projectName": "TNFD Tools MUI to ShadCN Migration",
-    "totalTasks": 12,
-    "sourceFile": "/Users/jaydenmcnab/Projects/tool-word-cloud-relational-map/scripts/shadcn_migration_prd.txt",
-    "generatedAt": "2023-11-14"
-  }
+  ]
 }

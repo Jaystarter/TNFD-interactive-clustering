@@ -10,7 +10,7 @@
 [[redirects]]
   # Route requests from /api/* to the corresponding function
   from = "/api/*"
-  to = "/.netlify/functions/api" # Rewrite to the function itself
+  to = "/.netlify/functions/api/:splat" # Rewrite to the function itself
   status = 200 # Rewrite status
   force = true
 

@@ -526,8 +526,8 @@ function App() {
         console.log('Tools sample (first tool):', JSON.stringify(tools[0], null, 2));
       }
       
-      // Use the direct Netlify Functions path
-      const response = await fetch('/.netlify/functions/api/natural-language-search', { // Direct path to the function
+      // Use the redirect-based path
+      const response = await fetch('/api/natural-language-search', { 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

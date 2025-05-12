@@ -11,16 +11,6 @@ app.use(cors()); // Enable CORS for all origins - adjust as needed for productio
 // Increase JSON body limit to handle large tools arrays sent from the frontend
 app.use(express.json({ limit: '2mb' }));
 
-// --- DEBUGGING MIDDLEWARE --- 
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] DEBUG: Received ${req.method} ${req.path}`);
-  // Log the raw body if available (might be undefined if already parsed)
-  // console.log('DEBUG Raw Body:', req.rawBody); 
-  console.log(`[${new Date().toISOString()}] DEBUG Parsed req.body:`, JSON.stringify(req.body, null, 2));
-  next();
-});
-// --- END DEBUGGING MIDDLEWARE ---
-
 // Middleware for request logging and prefix stripping removed for production
 
 // Check for API Key on server startup (within the function environment)

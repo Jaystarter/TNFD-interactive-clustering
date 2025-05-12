@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import * as d3 from 'd3';
 import { Tool, tools, categories, colorPalette } from '../data/tools';
+import { Paper, Box, Typography, Chip, ClickAwayListener } from '@mui/material';
 
 interface ForceGraphProps {
   width: number;
@@ -17,8 +18,9 @@ interface Node extends d3.SimulationNodeDatum {
 }
 
 interface Link extends d3.SimulationLinkDatum<Node> {
-  source: string | Node;
-  target: string | Node;
+  source: string | Node; // Can be an ID string or a Node object
+  target: string | Node; // Can be an ID string or a Node object
+  value?: number;
 }
 
 interface RelationshipInfo {
@@ -164,6 +166,10 @@ const fetchToolDetails = async (toolId: string): Promise<{
   }
 };
 
+const getNodeId = (node: string | Node): string => {
+  return typeof node === 'object' ? node.id : node;
+};
+
 export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<SVGGElement | null>(null);
@@ -174,17 +180,53 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
   // Ref for popup DOM element and current info
   const popupRef = useRef<HTMLDivElement>(null);
   const relationshipInfoRef = useRef<RelationshipInfo | null>(null);
-  // Sync ref and set initial popup position
+  // Ref to track if we've fit the viewport already
+  const hasInitialFitRef = useRef<boolean>(false);
+  // Ref to store the initial zoom scale for conditional panning
+  const initialZoomScaleRef = useRef<number>(1);
+  // Ref to track if we're at the initial zoom level (for conditional panning)
+  const isAtInitialZoomRef = useRef<boolean>(true);
+  // Ref to store the zoom behavior
+  const zoomBehaviorRef = useRef<d3.ZoomBehavior<Element, unknown> | null>(null);
+
+  // Sync ref and set popup position + animation
   useLayoutEffect(() => {
     relationshipInfoRef.current = relationshipInfo;
     if (relationshipInfo && popupRef.current) {
       const node = nodesRef.current.find(n => n.id === relationshipInfo._nodeId);
       if (node) {
+        // Apply zoom transform to get screen coordinates
+        const nodeRadius = node.relevance * 20;
         const sx = zoomTransformRef.current.applyX(node.x || 0);
         const sy = zoomTransformRef.current.applyY(node.y || 0);
-        popupRef.current.style.left = `${sx}px`;
-        popupRef.current.style.top = `${sy}px`;
+        
+        // Position the popup next to the node (right side by default)
+        let x = sx + nodeRadius + 15; // 15px offset from node edge
+        const y = sy - 50; // Position slightly above the center of the node
+        
+        // Check if popup would go off screen to the right
+        const rightEdge = x + 320; // 320px is our popup width
+        if (rightEdge > window.innerWidth - 20) {
+          // Position to the left of the node instead
+          x = sx - nodeRadius - 320 - 15;
+        }
+        
+        // Set position
+        popupRef.current.style.left = `${x}px`;
+        popupRef.current.style.top = `${y}px`;
+        
+        // Animate in with small delay for smoother appearance
+        setTimeout(() => {
+          if (popupRef.current) {
+            popupRef.current.style.opacity = '1';
+            popupRef.current.style.transform = 'scale(1)';
+          }
+        }, 50);
       }
+    } else if (popupRef.current) {
+      // Reset animation properties when hiding
+      popupRef.current.style.opacity = '0';
+      popupRef.current.style.transform = 'scale(0.95)';
     }
   }, [relationshipInfo]);
 
@@ -226,11 +268,19 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
 
     containerRef.current = container.node();
 
+    // Create zoom behavior with conditional panning
     const zoom = d3.zoom()
       .scaleExtent([0.5, 5])
       .on('zoom', (event) => {
         if (containerRef.current) {
+          // Store the current transform
           zoomTransformRef.current = event.transform;
+
+          // Check if we're at the initial zoom level (for conditional panning)
+          const currentScale = event.transform.k;
+          isAtInitialZoomRef.current = Math.abs(currentScale - initialZoomScaleRef.current) < 0.01;
+
+          // Apply the transform to the container
           d3.select(containerRef.current).attr('transform', event.transform.toString());
 
           // Imperatively update popup position on zoom
@@ -245,8 +295,24 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
         }
       });
 
+    // Store the zoom behavior for later use
+    zoomBehaviorRef.current = zoom;
+
+    // Apply zoom behavior to SVG
     svg.call(zoom as any)
       .on('dblclick.zoom', null);
+
+    // Disable panning when at initial zoom level
+    svg.on('mousedown touchstart', (event) => {
+      if (isAtInitialZoomRef.current) {
+        // Only prevent default if it's a pan attempt (not a click on a node)
+        const target = event.target as Element;
+        if (target.tagName === 'svg' || target.classList.contains('container')) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }
+    });
 
     container.append('g').attr('class', 'hull-group');
     container.append('g').attr('class', 'links');
@@ -307,8 +373,8 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
     linksRef.current = links;
 
     simulation.nodes(nodes);
-    simulation.force('link', d3.forceLink(links)
-      .id((d: any) => d.id)
+    simulation.force('link', d3.forceLink<Node, Link>(links)
+      .id((d: Node) => getNodeId(d)) // Corrected: d is a Node here
       .distance(70)
       .strength(0.75)
     );
@@ -481,16 +547,14 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
     };
 
     const linkElements = container.select('.links')
-      .selectAll('line')
-      .data(links, (d: any) => `${typeof d.source === 'object' ? d.source.id : d.source}-${typeof d.target === 'object' ? d.target.id : d.target}`);
+      .selectAll<SVGLineElement, Link>('line.link') // Explicitly type the selection
+      .data(links, (d: Link): string => `link-${getNodeId(d.source)}-${getNodeId(d.target)}`);
 
-    linkElements.exit().remove();
-
-    const linkEnter = linkElements.enter()
-      .append('line')
-      .style('stroke', '#cbd5e0')
-      .style('stroke-opacity', 0.5)
-      .style('stroke-width', 1.5)
+    const linkEnter = linkElements.enter().append('line')
+      .attr('class', 'link')
+      .attr('id', (d: Link) => `link-${getNodeId(d.source)}-${getNodeId(d.target)}`)
+      .style('stroke', '#94A3B8') // Tailwind gray-400
+      .style('stroke-width', 1)
       .style('stroke-dasharray', '4,4')
       .style('transition', 'all 0.3s ease');
 
@@ -506,6 +570,68 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
       .append('g')
       .attr('class', 'node')
       .call(drag(simulation) as any)
+      .on('mouseover', function(_event, d: Node) {
+        // Show label on hover immediately (no animation delay)
+        const nodeId = d.id;
+
+        // First update the label position to ensure it's correctly positioned
+        // This is crucial for fixing the misalignment issue
+        const node = d3.select(this);
+        const nodeData = node.datum() as Node;
+        const nodeX = nodeData.x || 0;
+        const nodeY = nodeData.y || 0;
+        const nodeRadius = nodeData.relevance * 20;
+
+        // Find and update the label for this node
+        const labelSelection = d3.selectAll<SVGGElement, Node>('.node-label')
+          .filter(function(labelData: Node) { // Ensure d is not null and has an id
+            return labelData && labelData.id === nodeId;
+          });
+
+        if (!labelSelection.empty()) {
+          // Update the label position to ensure it's correctly aligned with the node
+          labelSelection.attr('transform', `translate(${nodeX + nodeRadius + 5}, ${nodeY})`);
+
+          // Update text content and background rectangle size
+          const textElement = labelSelection.select<SVGTextElement>('text');
+          const rectElement = labelSelection.select<SVGRectElement>('rect');
+
+          if (!textElement.empty() && nodeData) {
+            textElement.text(nodeData.name || nodeData.id); // Use name, fallback to id
+            const textBBox = textElement.node()!.getBBox();
+            const textWidth = textBBox.width;
+            const textHeight = textBBox.height;
+
+            if (!rectElement.empty()) {
+              rectElement
+                .attr('x', textBBox.x - 8) // Increased horizontal padding
+                .attr('y', textBBox.y - 4) // Increased vertical padding
+                .attr('width', textWidth + 16) // Increased horizontal padding (8px each side)
+                .attr('height', textHeight + 8); // Increased vertical padding (4px each side)
+            }
+          }
+
+          // Make the label visible immediately
+          labelSelection
+            .style('opacity', 1)
+            .style('visibility', 'visible');
+        }
+      })
+      .on('mouseout', function(_event, d: Node) {
+        // Hide label when not hovering - immediate transition
+        const nodeId = d.id;
+        d3.selectAll('.node-label')
+          .filter(function(d: any) {
+            return d.id === nodeId;
+          })
+          .style('opacity', 0)
+          .style('visibility', 'hidden');
+
+        // Reset node highlight
+        d3.select(this).select('circle')
+          .style('stroke-width', d.cluster ? 2 : 1.5)
+          .style('filter', 'drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2))');
+      })
       .on('click', async function(event, d: Node) {
         event.stopPropagation();
 
@@ -668,14 +794,13 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
         cluster.nodes.forEach(node => {
           if (node.x === undefined || node.y === undefined) return;
 
-          const radius = node.relevance * 20;
-          const padding = 10;
+          const radius = node.relevance * 20; // Node radius
 
           const angleStep = 45;
           for (let angle = 0; angle < 360; angle += angleStep) {
             const radians = (angle * Math.PI) / 180;
-            const x = node.x + (radius + padding) * Math.cos(radians);
-            const y = node.y + (radius + padding) * Math.sin(radians);
+            const x = node.x + (radius + 10) * Math.cos(radians);
+            const y = node.y + (radius + 10) * Math.sin(radians);
             points.push([x, y]);
           }
         });
@@ -741,7 +866,7 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
         const secondaryWidth = cluster.secondaryFeature ? (cluster.secondaryFeature.length * 6 + 20) : 0;
         const totalWidth = Math.max(primaryWidth, secondaryWidth) + 30; // Add extra space for badge
 
-        // Add main background pill
+        // Add main background pill with enhanced styling
         labelGroup.append('rect')
           .attr('rx', 12)
           .attr('ry', 12)
@@ -749,10 +874,10 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
           .attr('y', -15)
           .attr('width', totalWidth)
           .attr('height', cluster.secondaryFeature ? 50 : 30)
-          .style('fill', d3.rgb(cluster.color).copy({opacity: 0.25}).toString())
+          .style('fill', d3.rgb(cluster.color).copy({opacity: 0.35}).toString()) // More opaque
           .style('stroke', d3.rgb(cluster.color).darker(0.3).toString())
-          .style('stroke-width', 1.5)
-          .style('filter', 'drop-shadow(0px 2px 3px rgba(0,0,0,0.15))');
+          .style('stroke-width', 2) // Thicker border
+          .style('filter', 'drop-shadow(0px 3px 5px rgba(0,0,0,0.2))'); // Enhanced shadow
 
         // Add count badge - repositioned for better visibility
         const badgeX = totalWidth/2 - 15;
@@ -780,75 +905,134 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
           .style('fill', 'white')
           .style('pointer-events', 'none');
 
-        // Add main category text
+        // Add main category text with enhanced styling for more prominence
         labelGroup.append('text')
           .text(cluster.category)
           .attr('text-anchor', 'middle')
           .attr('y', 0)
-          .style('font-size', '13px')
+          .style('font-size', '15px') // Larger font
           .style('font-family', "'Inter', sans-serif")
-          .style('font-weight', '600')
-          .style('letter-spacing', '0.3px')
+          .style('font-weight', '700') // Bolder
+          .style('letter-spacing', '0.5px') // More spacing
           .style('fill', d3.rgb(cluster.color).darker(1.5).toString())
           .style('pointer-events', 'none')
-          .style('text-shadow', '0px 1px 2px rgba(255,255,255,0.7)');
+          .style('text-shadow', '0px 1px 3px rgba(255,255,255,0.9)'); // Enhanced text shadow
 
-        // Add secondary feature text if available - with more reliable display
+        // Add secondary feature text if available - with enhanced styling
         if (cluster.secondaryFeature && cluster.secondaryFeature.length > 0) {
           labelGroup.append('text')
             .text(cluster.secondaryFeature)
             .attr('text-anchor', 'middle')
             .attr('y', 22)
-            .style('font-size', '11px')
+            .style('font-size', '12px') // Slightly larger
             .style('font-family', "'Inter', sans-serif")
-            .style('font-weight', '400')
+            .style('font-weight', '500') // Bolder
             .style('font-style', 'italic')
             .style('fill', d3.rgb(cluster.color).darker(1).toString())
-            .style('pointer-events', 'none');
+            .style('pointer-events', 'none')
+            .style('text-shadow', '0px 1px 2px rgba(255,255,255,0.7)'); // Added text shadow
         }
 
       });
     };
 
     const drawNodeLabels = () => {
-      // Only show labels for standalone nodes (not in clusters)
-      const standaloneNodes = nodes.filter(node => !node.cluster);
+      const baseSelection = d3.select(containerRef.current!);
 
-      container.select('.node-labels').remove();
+      let labelGroup = baseSelection.select<SVGGElement>('g.node-labels'); 
+      if (labelGroup.empty()) {
+        labelGroup = baseSelection.append<SVGGElement>('g') 
+          .attr('class', 'node-labels')
+          .style('pointer-events', 'none');
+      }
 
-      const labelGroup = container.append('g')
-        .attr('class', 'node-labels')
+      const labels: d3.Selection<SVGGElement, Node, SVGGElement, unknown> = 
+        labelGroup.selectAll<SVGGElement, Node>('g.node-label')
+        .data(nodesRef.current, (d: Node) => d.id);
+
+      labels.exit().remove();
+
+      const labelsEnter: d3.Selection<SVGGElement, Node, SVGGElement, Node> = 
+        labels.enter()
+        .append<SVGGElement>('g')
+        .attr('class', 'node-label') 
+        .datum((d: Node) => d) 
+        .style('opacity', 0) 
+        .style('visibility', 'hidden') 
+        .style('transition', 'opacity 0.15s ease') 
+        .attr('transform', (d: any) => {
+          const x = typeof d.x === 'number' ? d.x : 0;
+          const y = typeof d.y === 'number' ? d.y : 0;
+          const relevance = typeof d.relevance === 'number' ? d.relevance : 1;
+          const nodeRadius = relevance * 20;
+          return `translate(${x + nodeRadius + 5}, ${y})`;
+        });
+
+      labelsEnter.append<SVGGElement>('rect')
+        .attr('class', 'node-label-bg')
+        .attr('rx', 12)
+        .attr('ry', 12)
+        .style('fill', '#F0FDF4') // Light green background
+        .style('stroke', '#15803D') // Darker green border
+        .style('stroke-width', 1.5)
+        .style('filter', 'drop-shadow(0px 4px 8px rgba(0,0,0,0.25)')
+        // Dynamically size based on future text content
+        .each(function(d: Node) {
+          const rect = d3.select(this);
+          // Temporarily append text to parent group to measure, then size rect, then remove temp text
+          const parentGroup = d3.select(this.parentNode as SVGGElement);
+          const tempText = parentGroup.append('text')
+            .style('font-size', '20px') 
+            .style('font-family', "'Inter', sans-serif")
+            .style('font-weight', '700')
+            .text(d.name || d.id);
+          const textBBox = tempText.node()!.getBBox();
+          tempText.remove();
+
+          rect.attr('x', textBBox.x - 8)
+              .attr('y', textBBox.y - 4)
+              .attr('width', textBBox.width + 16)
+              .attr('height', textBBox.height + 8);
+        });
+
+      labelsEnter.append<SVGGElement>('text')
+        .attr('x', 0)
+        .attr('y', 0) 
+        .style('font-size', '20px') 
+        .style('font-family', "'Inter', sans-serif")
+        .style('font-weight', '700') 
+        .style('fill', '#1a202c') 
+        .style('dominant-baseline', 'middle') 
+        .style('text-anchor', 'start') 
         .style('pointer-events', 'none');
 
-      standaloneNodes.forEach(node => {
-        if (!node.x || !node.y) return;
+      const labelsUpdate: d3.Selection<SVGGElement, Node, SVGGElement, unknown> = 
+        labelsEnter.merge(labels);
 
-        const labelContainer = labelGroup
-          .append('g')
-          .attr('transform', `translate(${node.x + node.relevance * 20 + 10}, ${node.y})`);
+      labelsUpdate.each(function(this: SVGGElement, dNode: Node) { 
+        if (dNode.x === undefined || dNode.y === undefined) return; 
 
-        labelContainer.append('rect')
-          .attr('rx', 8)
-          .attr('ry', 8)
-          .attr('x', -5)
-          .attr('y', -10)
-          .attr('width', node.name.length * 6.5 + 10)
-          .attr('height', 22)
-          .style('fill', 'white')
-          .style('fill-opacity', 0.85)
-          .style('stroke', '#e2e8f0')
-          .style('stroke-width', 1)
-          .style('filter', 'drop-shadow(0px 1px 2px rgba(0,0,0,0.1))');
+        const nodeRadius = dNode.relevance * 20; 
+        const labelX = dNode.x + nodeRadius + 5; 
+        const labelY = dNode.y;
 
-        labelContainer.append('text')
-          .text(node.name)
-          .attr('x', 0)
-          .attr('y', 4)
-          .style('font-size', '12px')
-          .style('font-family', "'Inter', sans-serif")
-          .style('font-weight', '500')
-          .style('fill', '#2d3748')
-          .style('pointer-events', 'none');
+        const currentLabel = d3.select(this);
+        currentLabel.attr('transform', `translate(${labelX}, ${labelY})`);
+
+        currentLabel.select<SVGTextElement>('text').text(dNode.name || dNode.id);
+        
+        const textElement = currentLabel.select<SVGTextElement>('text');
+        const rectElement = currentLabel.select<SVGRectElement>('rect.node-label-bg');
+
+        if (!textElement.empty() && !rectElement.empty()) {
+          const textBBox = textElement.node()!.getBBox();
+          rectElement
+            .attr('x', textBBox.x - 8)
+            .attr('y', textBBox.y - 4)
+            .attr('width', textBBox.width + 16)
+            .attr('height', textBBox.height + 8)
+            .style('stroke', dNode.cluster ? d3.rgb(colorPalette.darkGreen).toString() : '#15803D'); // Use consistent border color
+        }
       });
     };
 
@@ -891,8 +1075,103 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
       });
     }
 
+    // Function to calculate the bounds of all nodes
+    const calculateNodesBounds = () => {
+      if (nodes.length === 0) return null;
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      nodes.forEach(node => {
+        if (node.x === undefined || node.y === undefined) return;
+
+        const radius = node.relevance * 20; // Node radius
+
+        minX = Math.min(minX, node.x - radius);
+        minY = Math.min(minY, node.y - radius);
+        maxX = Math.max(maxX, node.x + radius);
+        maxY = Math.max(maxY, node.y + radius);
+      });
+
+      return { minX, minY, maxX, maxY };
+    };
+
+    // Function to fit all nodes in the viewport
+    const fitNodesToViewport = () => {
+      if (!svgRef.current || !containerRef.current) return;
+
+      const bounds = calculateNodesBounds();
+      if (!bounds || !svgRef.current) return;
+
+      const { minX, minY, maxX, maxY } = bounds;
+
+      // Add padding
+      const padding = 50;
+      const width = maxX - minX + padding * 2;
+      const height = maxY - minY + padding * 2;
+
+      // Calculate scale to fit
+      const scale = Math.min(
+        svgRef.current.clientWidth / width,
+        svgRef.current.clientHeight / height
+      );
+
+      // Calculate center point of the bounds
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      // Calculate the transform to center and scale
+      const transform = d3.zoomIdentity
+        .translate(svgRef.current.clientWidth / 2, svgRef.current.clientHeight / 2)
+        .scale(scale)
+        .translate(-centerX, -centerY);
+
+      // Store the initial zoom scale for conditional panning
+      initialZoomScaleRef.current = scale;
+      isAtInitialZoomRef.current = true;
+
+      // Apply the transform directly
+      if (svgRef.current) {
+        const svgSelection = d3.select(svgRef.current) as any; // Cast to any for zoomBehavior typing
+        const zoomBehavior = zoomBehaviorRef.current as any; // Cast to any for zoomBehavior typing
+
+        if (zoomBehavior) {
+          svgSelection
+            .transition()
+            .duration(750) // Keep the transition for smoothness
+            .call(zoomBehavior.transform, transform);
+        }
+      }
+
+      // Update the zoom transform ref
+      zoomTransformRef.current = transform;
+
+      // Mark that we've done the initial fit
+      hasInitialFitRef.current = true;
+    };
+
+    // Fit nodes to viewport ONLY on initial load
+    simulation.on('end', () => {
+      if (!hasInitialFitRef.current) {
+        fitNodesToViewport();
+        // Set flag to true to ensure this only happens once
+        hasInitialFitRef.current = true;
+      }
+    });
+
+    // Handle window resize - only adjust the view, don't re-zoom
+    const handleResize = () => {
+      // Don't auto-zoom on resize, just maintain the current view
+      // This prevents the unwanted auto-zoom behavior after 30 seconds
+    };
+
+    window.addEventListener('resize', handleResize);
+
     return () => {
       simulation.stop();
+      window.removeEventListener('resize', handleResize);
     };
 
   }, [toolsData, width, height]);
@@ -901,331 +1180,154 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
     <>
       <svg ref={svgRef} width={width} height={height} />
       {relationshipInfo && (
-        <div
-          ref={popupRef}
-          className="relationship-info"
-          style={{
-            position: 'fixed',
-            left: '0px',
-            top: '0px',
-            background: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            padding: '0',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-            zIndex: 0,
-            width: '380px',
-            maxWidth: 'calc(100vw - 20px)',
-            overflow: 'auto',
-            maxHeight: '80vh',
-            fontFamily: "'Inter', sans-serif",
-            transition: 'none',
-          }}
-        >
-          {/* Header with tool name and category */}
-          <div style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid #f0f0f0',
-            background: `linear-gradient(135deg, ${colorPalette.darkGreen}, ${colorPalette.mediumGreen})`,
-            color: 'white',
-            position: 'relative',
-            borderTopLeftRadius: '12px',
-            borderTopRightRadius: '12px',
-          }}>
-            {/* Close button */}
-            <div
-              onClick={() => setRelationshipInfo(null)}
-              style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </div>
-
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: '600', paddingRight: '20px' }}>
-              {relationshipInfo.name}
-            </h3>
-            <div style={{
-              display: 'inline-block',
-              padding: '3px 8px',
+        <ClickAwayListener onClickAway={() => setRelationshipInfo(null)}>
+          <Paper
+            ref={popupRef}
+            elevation={3}
+            sx={{
+              position: 'fixed',
+              left: '0px',
+              top: '0px',
+              width: '320px', // Smaller size as requested
               borderRadius: '12px',
-              background: 'rgba(255,255,255,0.25)',
-              fontSize: '12px',
-              fontWeight: '500',
-              marginTop: '4px'
-            }}>
-              {relationshipInfo.category}
-            </div>
-          </div>
-
-          {/* Tool details section */}
-          <div style={{ padding: '16px 20px' }}>
-            {/* TNFD Link Button - more compact version */}
-            <div style={{
-              marginBottom: '12px',
-              display: 'flex',
-              justifyContent: 'center',
-              position: 'relative',
-              zIndex: 10
-            }}>
-              {relationshipInfo.tnfdLink ? (
-                <a
-                  href={relationshipInfo.tnfdLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '6px 12px',
-                    backgroundColor: colorPalette.darkGreen, // Dark green from palette
-                    color: 'white',
-                    borderRadius: '4px',
-                    textDecoration: 'none',
-                    fontWeight: '500',
-                    fontSize: '13px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                    transition: 'all 0.2s ease',
-                    gap: '6px',
-                    width: '100%',
-                    maxWidth: '250px',
-                    cursor: 'pointer',
-                    height: '32px',
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = d3.rgb(colorPalette.darkGreen).darker(0.3).toString();
-                    e.currentTarget.style.boxShadow = '0 3px 6px rgba(0,0,0,0.15)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = colorPalette.darkGreen;
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                  }}
-                  onClick={() => {
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                    <polyline points="15 3 21 3 21 9"></polyline>
-                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                  </svg>
-                  View on TNFD Platform
-                </a>
-              ) : (
-                <div style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#f0f0f0',
-                  color: '#666',
-                  borderRadius: '4px',
-                  fontWeight: '500',
-                  fontSize: '13px',
-                  textAlign: 'center',
-                  width: '100%',
-                  maxWidth: '250px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  No link available for this tool
-                </div>
-              )}
-            </div>
-
-            {relationshipInfo.description && (
-              <div style={{ marginBottom: '20px' }}>
-                <p style={{ margin: '0 0 8px 0', fontSize: '14px', lineHeight: '1.6', color: '#333', fontWeight: '400' }}>
-                  {relationshipInfo.description}
-                </p>
-              </div>
-            )}
-
-            {/* Tool characteristics in a more aesthetic layout */}
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{
-                margin: '0 0 16px 0',
-                fontSize: '16px',
-                color: '#333',
-                fontWeight: '600',
-                borderBottom: '1px solid #f0f0f0',
-                paddingBottom: '10px',
-                letterSpacing: '0.3px'
-              }}>
-                Characteristics
-              </h4>
-
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr',
-                gap: '16px',
-                background: '#f9f9f9',
-                borderRadius: '8px',
-                padding: '16px'
-              }}>
-                {relationshipInfo.primaryFunction && (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: 'white',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                  }}>
-                    <span style={{
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      color: '#444',
-                      marginBottom: '6px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
-                      Primary Function
-                    </span>
-                    <span style={{
-                      fontSize: '14px',
-                      color: '#333',
-                      lineHeight: '1.5'
-                    }}>
-                      {relationshipInfo.primaryFunction}
-                    </span>
-                  </div>
-                )}
-
-                {relationshipInfo.dataSources && (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: 'white',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                  }}>
-                    <span style={{
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      color: '#444',
-                      marginBottom: '6px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
-                      Data Sources
-                    </span>
-                    <span style={{
-                      fontSize: '14px',
-                      color: '#333',
-                      lineHeight: '1.5'
-                    }}>
-                      {relationshipInfo.dataSources}
-                    </span>
-                  </div>
-                )}
-
-                {relationshipInfo.targetUser && (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: 'white',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                  }}>
-                    <span style={{
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      color: '#444',
-                      marginBottom: '6px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
-                      Target Users
-                    </span>
-                    <span style={{
-                      fontSize: '14px',
-                      color: '#333',
-                      lineHeight: '1.5'
-                    }}>
-                      {relationshipInfo.targetUser}
-                    </span>
-                  </div>
-                )}
-
-                {relationshipInfo.environmentType && (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: 'white',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                  }}>
-                    <span style={{
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      color: '#444',
-                      marginBottom: '6px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
-                      Environment Type
-                    </span>
-                    <span style={{
-                      fontSize: '14px',
-                      color: '#333',
-                      lineHeight: '1.5'
-                    }}>
-                      {relationshipInfo.environmentType}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Close button */}
-          <button
-            onClick={() => setRelationshipInfo(null)}
-            style={{
-              position: 'absolute',
-              top: '10px',
-              right: '10px',
-              background: 'rgba(255,255,255,0.3)',
-              border: 'none',
-              borderRadius: '50%',
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontSize: '14px',
-              color: 'white',
-              fontWeight: 'bold',
-              padding: 0,
+              overflow: 'hidden',
+              zIndex: 1300,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              transition: 'opacity 0.2s, transform 0.2s',
+              opacity: 0, // Initial opacity, will be animated in useEffect
+              transform: 'scale(0.95)', // Initial transform, will be animated in useEffect
+              border: '4px solid rgba(0, 128, 96, 0.5)', // Very prominent green border
+              bgcolor: 'rgba(255, 255, 255, 0.98)', // Slightly transparent white background
             }}
           >
-            ×
-          </button>
-        </div>
+            {/* Tool Title */}
+            <Box sx={{ p: 2, pb: 1.5 }}>
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5 }}>
+                {relationshipInfo.name}
+              </Typography>
+              
+              {/* Description */}
+              {relationshipInfo.description && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.875rem' }}>
+                  {relationshipInfo.description}
+                </Typography>
+              )}
+              
+              {/* Primary Function */}
+              {relationshipInfo.primaryFunction && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ 
+                    display: 'block', 
+                    textTransform: 'uppercase',
+                    fontWeight: 500,
+                    mb: 0.5,
+                    fontSize: '0.7rem',
+                    letterSpacing: '0.05em'
+                  }}>
+                    PRIMARY FUNCTION
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box 
+                      sx={{ 
+                        width: 10, 
+                        height: 10, 
+                        borderRadius: '50%', 
+                        bgcolor: 'primary.main', 
+                        mr: 1 
+                      }} 
+                    />
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                      {relationshipInfo.primaryFunction}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+              
+              {/* Data Sources as Chips */}
+              {relationshipInfo.dataSources && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ 
+                    display: 'block', 
+                    textTransform: 'uppercase',
+                    fontWeight: 500,
+                    mb: 0.75,
+                    fontSize: '0.7rem',
+                    letterSpacing: '0.05em'
+                  }}>
+                    DATA SOURCES
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                    {relationshipInfo.dataSources.split(';').map((source, index) => (
+                      <Chip
+                        key={index}
+                        label={source.trim()}
+                        size="small"
+                        sx={{
+                          bgcolor: '#EBF2FA', // Light blue background
+                          color: '#4285F4', // Blue text
+                          fontSize: '0.75rem',
+                          height: '22px',
+                          '& .MuiChip-label': { px: 1 }
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+              
+              {/* Links To */}
+              {(() => {
+                // Get outgoing connections
+                const outgoingLinks = relationshipInfo.connections.filter(
+                  conn => conn.type === 'outgoing' || conn.type === 'both'
+                );
+                
+                if (outgoingLinks.length === 0) return null;
+                
+                // Show just a few links plus a count for others
+                const displayLimit = 1;
+                const linksToShow = outgoingLinks.slice(0, displayLimit);
+                const remainingCount = outgoingLinks.length - displayLimit;
+                
+                return (
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ 
+                      display: 'block', 
+                      textTransform: 'uppercase',
+                      fontWeight: 500,
+                      mb: 0.75,
+                      fontSize: '0.7rem',
+                      letterSpacing: '0.05em'
+                    }}>
+                      LINKS TO
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                      {linksToShow.map(link => (
+                        <Chip
+                          key={link.id}
+                          label={link.name}
+                          size="small"
+                          sx={{
+                            bgcolor: '#E8F5E9', // Light green background
+                            color: '#0F9D58', // Green text
+                            fontSize: '0.75rem',
+                            height: '22px',
+                            '& .MuiChip-label': { px: 1 }
+                          }}
+                        />
+                      ))}
+                      {remainingCount > 0 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                          +{remainingCount} more
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                );
+              })()}
+            </Box>
+          </Paper>
+        </ClickAwayListener>
       )}
     </>
   );

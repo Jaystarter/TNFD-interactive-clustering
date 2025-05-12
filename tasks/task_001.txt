@@ -1,11 +1,11 @@
 # Task ID: 1
-# Title: Setup ShadCN UI and Tailwind CSS Infrastructure
-# Status: pending
+# Title: Redesign Node Click Popup
+# Status: done
 # Dependencies: None
 # Priority: high
-# Description: Install and configure ShadCN UI, Tailwind CSS, and related dependencies. Set up the project structure to support incremental component migration.
+# Description: Modify the existing node click popup to be smaller, display the tool's description, and visually match the provided example image. The popup should include the tool's name (title), primary function, data sources (as chips), and links to other tools (as chips/text).
 # Details:
-Install required packages: shadcn/ui, tailwindcss, postcss, autoprefixer. Configure tailwind.config.js with TNFD brand colors and design tokens. Set up the components.json file for ShadCN CLI. Create a directory structure for new components. Implement a strategy for coexistence of MUI and ShadCN during migration.
+1. Locate Existing Popup: Identify the React component and logic for the current popup (likely in App.tsx or child, triggered by relationshipInfo state). 2. Data Mapping: Map Tool.name to title; find a suitable Tool.description field; map Tool.primaryFunction; map Tool.dataSources (array) to MUI Chips; map Tool.linksTo (array) to MUI Chips with '+N more' logic. 3. Component Structure & Styling: Use MUI Paper, Box, Typography, Chip. Ensure it's 'way smaller'. Mimic example image layout. 4. Functionality: Retain existing show/hide logic on node click/click away.
 
 # Test Strategy:
-Verify successful installation by creating a simple test component. Ensure Tailwind classes are properly processed. Confirm that existing MUI components still function correctly alongside the new setup.
+Click various nodes. Verify correct info display (name, description, primary function, data sources, links). Confirm smaller size and visual match. Test with varying data quantities.

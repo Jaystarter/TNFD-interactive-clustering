@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import * as d3 from 'd3';
 import { Tool, tools, categories, colorPalette } from '../data/tools';
-import { Paper, Box, Typography, Chip, ClickAwayListener } from '@mui/material';
+import { Paper, Box, Typography, ClickAwayListener, Button, Avatar } from '@mui/material';
+import BuildIcon from '@mui/icons-material/Build';
+import PublicIcon from '@mui/icons-material/Public';
+import GroupIcon from '@mui/icons-material/Group';
+import StorageIcon from '@mui/icons-material/Storage';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
 interface ForceGraphProps {
   width: number;
@@ -552,6 +557,9 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
     const linkElements = container.select('.links')
       .selectAll<SVGLineElement, Link>('line.link') // Explicitly type the selection
       .data(links, (d: Link): string => `link-${getNodeId(d.source)}-${getNodeId(d.target)}`);
+
+    // Remove any orphaned links when nodes are filtered out
+    linkElements.exit().remove();
 
     const linkEnter = linkElements.enter().append('line')
       .attr('class', 'link')
@@ -1177,143 +1185,87 @@ export const ForceGraph = ({ width, height, toolsData }: ForceGraphProps) => {
               position: 'fixed',
               left: '0px',
               top: '0px',
-              width: '320px', // Smaller size as requested
+              transform: 'translate(20px, -50%)', // Offset from the node
+              p: 2.5,
+              maxWidth: 380,
+              minWidth: 300, // Adjusted minWidth slightly
               borderRadius: '12px',
-              overflow: 'hidden',
-              zIndex: 1300,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-              transition: 'opacity 0.2s, transform 0.2s',
-              opacity: 0, // Initial opacity, will be animated in useEffect
-              transform: 'scale(0.95)', // Initial transform, will be animated in useEffect
-              border: '4px solid rgba(0, 128, 96, 0.5)', // Very prominent green border
-              bgcolor: 'rgba(255, 255, 255, 0.98)', // Slightly transparent white background
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+              border: '4px solid rgba(0, 128, 96, 0.5)', // Added green border
+              zIndex: 1301,
+              backgroundColor: '#FFFFFF', // Solid white background as per image
+              // backdropFilter: 'blur(10px)', // Removed blur for a more solid look
+              // backgroundColor: 'rgba(255, 255, 255, 0.85)', 
             }}
           >
-            {/* Tool Title */}
-            <Box sx={{ p: 2, pb: 1.5 }}>
-              <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5 }}>
-                {relationshipInfo.name}
-              </Typography>
-              
-              {/* Description */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {/* Header Section */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Avatar sx={{ bgcolor: 'transparent', width: 48, height: 48 }}> 
+                  <BuildIcon sx={{ color: '#7B1FA2', fontSize: '2.5rem' }} /> 
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" component="h2" sx={{ fontWeight: 'bold', lineHeight: 1.3, color: '#202124' }}>
+                    {relationshipInfo.name}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {relationshipInfo.primaryFunction}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Brief Description */}
               {relationshipInfo.description && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.875rem' }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                   {relationshipInfo.description}
                 </Typography>
               )}
-              
-              {/* Primary Function */}
-              {relationshipInfo.primaryFunction && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ 
-                    display: 'block', 
-                    textTransform: 'uppercase',
-                    fontWeight: 500,
-                    mb: 0.5,
-                    fontSize: '0.7rem',
-                    letterSpacing: '0.05em'
-                  }}>
-                    PRIMARY FUNCTION
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Box 
-                      sx={{ 
-                        width: 10, 
-                        height: 10, 
-                        borderRadius: '50%', 
-                        bgcolor: 'primary.main', 
-                        mr: 1 
-                      }} 
-                    />
-                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                      {relationshipInfo.primaryFunction}
-                    </Typography>
+
+              {/* Attributes List - using a consistent Box structure for each attribute */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1}}>
+                {relationshipInfo.environmentType && relationshipInfo.environmentType.trim() !== '' && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <PublicIcon sx={{ color: '#1976D2', fontSize: '1.25rem' }} /> 
+                    <Typography variant="body2" sx={{ color: '#3c4043' }}>{relationshipInfo.environmentType}</Typography>
                   </Box>
-                </Box>
+                )}
+                {relationshipInfo.targetUser && relationshipInfo.targetUser.trim() !== '' && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <GroupIcon sx={{ color: '#388E3C', fontSize: '1.25rem' }} /> 
+                    <Typography variant="body2" sx={{ color: '#3c4043' }}>{relationshipInfo.targetUser}</Typography>
+                  </Box>
+                )}
+                {relationshipInfo.dataSources && relationshipInfo.dataSources.trim() !== '' && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <StorageIcon sx={{ color: '#FFA000', fontSize: '1.25rem' }} /> 
+                    <Typography variant="body2" sx={{ color: '#3c4043' }}>{relationshipInfo.dataSources}</Typography>
+                  </Box>
+                )}
+              </Box>
+
+              {/* View Website Link */}
+              {relationshipInfo.tnfdLink && (
+                <Button
+                  href={relationshipInfo.tnfdLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  startIcon={<OpenInNewIcon />}
+                  variant="text" 
+                  sx={{
+                    mt: 1.5,
+                    alignSelf: 'flex-start',
+                    textTransform: 'none',
+                    color: '#1976d2', 
+                    fontWeight: 'medium',
+                    '&:hover': {
+                      bgcolor: 'transparent',
+                      textDecoration: 'underline'
+                    }
+                  }}
+                >
+                  View website
+                </Button>
               )}
-              
-              {/* Data Sources as Chips */}
-              {relationshipInfo.dataSources && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ 
-                    display: 'block', 
-                    textTransform: 'uppercase',
-                    fontWeight: 500,
-                    mb: 0.75,
-                    fontSize: '0.7rem',
-                    letterSpacing: '0.05em'
-                  }}>
-                    DATA SOURCES
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                    {relationshipInfo.dataSources.split(';').map((source, index) => (
-                      <Chip
-                        key={index}
-                        label={source.trim()}
-                        size="small"
-                        sx={{
-                          bgcolor: '#EBF2FA', // Light blue background
-                          color: '#4285F4', // Blue text
-                          fontSize: '0.75rem',
-                          height: '22px',
-                          '& .MuiChip-label': { px: 1 }
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-              
-              {/* Links To */}
-              {(() => {
-                // Get outgoing connections
-                const outgoingLinks = relationshipInfo.connections.filter(
-                  conn => conn.type === 'outgoing' || conn.type === 'both'
-                );
-                
-                if (outgoingLinks.length === 0) return null;
-                
-                // Show just a few links plus a count for others
-                const displayLimit = 1;
-                const linksToShow = outgoingLinks.slice(0, displayLimit);
-                const remainingCount = outgoingLinks.length - displayLimit;
-                
-                return (
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ 
-                      display: 'block', 
-                      textTransform: 'uppercase',
-                      fontWeight: 500,
-                      mb: 0.75,
-                      fontSize: '0.7rem',
-                      letterSpacing: '0.05em'
-                    }}>
-                      LINKS TO
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-                      {linksToShow.map(link => (
-                        <Chip
-                          key={link.id}
-                          label={link.name}
-                          size="small"
-                          sx={{
-                            bgcolor: '#E8F5E9', // Light green background
-                            color: '#0F9D58', // Green text
-                            fontSize: '0.75rem',
-                            height: '22px',
-                            '& .MuiChip-label': { px: 1 }
-                          }}
-                        />
-                      ))}
-                      {remainingCount > 0 && (
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                          +{remainingCount} more
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                );
-              })()}
             </Box>
           </Paper>
         </ClickAwayListener>
